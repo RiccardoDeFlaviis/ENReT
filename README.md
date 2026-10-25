@@ -4,7 +4,7 @@
 
 **Before using the application, reading the [user guide](docs/ENReT_guide.pdf) is strongly recommended**: it explains how the application was conceived and developed, its theoretical basis, and how to use it, with guided examples.
 
-Version: **1.0.0**, the first public release (see `CHANGELOG.md` for the version history).
+Version: **1.0.0**, the first public release (see [CHANGELOG.md](CHANGELOG.md) for the version history).
 
 ## Main features
 

@@ -6,9 +6,7 @@ All notable changes to ENReT are documented in this file. Versions follow [seman
 
 First public release.
 
-The computations are identical to those of the last development version, 0.11.1, so the validation described in `docs/` applies to this release.
-
-Earlier versions were internal development versions. They were originally numbered x.y (for example, 10.4 and 11.1) and were renumbered 0.x.y (0.10.4, 0.11.1) at the first public release, following [semantic versioning](https://semver.org/); version 1.0.0 corresponds to development version 0.11.1, formerly 11.1.
+The validation described in `docs/` applies to this release.
 
 Main features of this release:
 
