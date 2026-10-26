@@ -43,12 +43,12 @@ The web version runs R in the browser (Shinylive / webR). It is suitable for eve
 
 | Path | Content |
 |---|---|
-| `app.R`, `global.R`, `model_registry.R` | entry point, global settings, model and dataset registry |
-| `R/` | user interface (`ui.R`) and server (`server.R`) |
-| `R/_disable_autoload.R` | disables the automatic loading of the `R/` folder by Shiny, so that the files are loaded in the order set in `app.R` (required) |
-| `server_chunks/` | computational modules (fitting engine, diagnostics, Batch Elaboration, model comparison, shelf-life, non-isothermal predictions, exports) |
-| `app_deploy.R` | single-file version of the app used for the web version (Shinylive), generated from the files above: changes should be made to the source files |
-| `docs/` | user guide, statistical details and validation, validation results |
+| [`app.R`](app.R), [`global.R`](global.R), [`model_registry.R`](model_registry.R) | entry point, global settings, model and dataset registry |
+| [`R/`](R) | user interface ([`ui.R`](R/ui.R)) and server ([`server.R`](R/server.R)) |
+| [`R/_disable_autoload.R`](R/_disable_autoload.R) | disables the automatic loading of the `R/` folder by Shiny, so that the files are loaded in the order set in `app.R` (required) |
+| [`server_chunks/`](server_chunks) | computational modules (fitting engine, diagnostics, Batch Elaboration, model comparison, shelf-life, non-isothermal predictions, exports) |
+| [`app_deploy.R`](app_deploy.R) | single-file version of the app used for the web version (Shinylive), generated from the files above: changes should be made to the source files |
+| [`docs/`](docs) | user guide, statistical details and validation, validation results |
 
 Code comments are in English; internal function and variable names are in Italian.
 
@@ -68,7 +68,7 @@ The numerical results were validated against:
 - the esterase assay data of **Carroll & Ruppert (1988)**, *Transformation and Weighting in Regression*, for weighted least squares;
 - the parameters estimated by **ComBase** for 26 microbial growth curves (Baranyi & Roberts model).
 
-Details are given in the statistical document and in the validation workbook in `docs/`.
+Details are given in the statistical document and in the validation workbook in [`docs/`](docs).
 
 ## Use of AI tools
 
@@ -82,9 +82,9 @@ A citation will be added here when the accompanying article is available.
 
 Copyright (C) 2026 Riccardo De Flaviis
 
-ENReT is free software, distributed under the **GNU General Public License v3.0** (see `LICENSE`). It is provided without any warranty.
+ENReT is free software, distributed under the **GNU General Public License v3.0** (see [`LICENSE`](LICENSE)). It is provided without any warranty.
 
-The documentation in the `docs/` folder is licensed under the **Creative Commons Attribution 4.0 International License (CC BY 4.0)**: it can be shared and adapted, provided that the author is credited and any changes are indicated (https://creativecommons.org/licenses/by/4.0/).
+The documentation in the [`docs/`](docs) folder is licensed under the **Creative Commons Attribution 4.0 International License (CC BY 4.0)**: it can be shared and adapted, provided that the author is credited and any changes are indicated (https://creativecommons.org/licenses/by/4.0/).
 
 The reference datasets included in the application remain the property of their respective sources (ComBase, NIST, Bates & Watts, Carroll & Ruppert, and the cited authors) and are not covered by the license of the code; they are included, with full citation, for educational and validation purposes.
 
