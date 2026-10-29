@@ -63,7 +63,7 @@ Code comments are in English; internal function and variable names are in Italia
 
 The numerical results were validated against:
 
-- the 26 nonlinear regression datasets of the **NIST Statistical Reference Datasets**, with certified values: at least 5 correct significant digits for all parameters and residual sums of squares, apart from two known issues of the certified values (Roszman1, Lanczos1);
+- the 26 nonlinear regression datasets of the **NIST Statistical Reference Datasets**, with certified values: at least 5 correct significant digits for all parameters and residual sums of squares, apart from the residual sum of squares of Lanczos1, whose certified value (1.4·10⁻²⁵) is at the limit of double-precision arithmetic;
 - the datasets of **Bates & Watts (1988)**, *Nonlinear Regression Analysis and Its Applications*;
 - the esterase assay data of **Carroll & Ruppert (1988)**, *Transformation and Weighting in Regression*, for weighted least squares;
 - the parameters estimated by **ComBase** for 26 microbial growth curves (Baranyi & Roberts model).
