@@ -1,5 +1,7 @@
 # ENReT — Easy Non-linear Regression Tool
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23839618.svg)](https://doi.org/10.5281/zenodo.23839618)
+
 **ENReT** is an interactive application for nonlinear regression, designed for food technologists and food scientists. It fits built-in or custom models to experimental data and provides parameter estimates with their uncertainty, model diagnostics and model comparison, without requiring programming.
 
 **Before using the application, reading the [user guide](docs/ENReT_guide.pdf) is strongly recommended**: it explains how the application was conceived and developed, its theoretical basis, and how to use it, with guided examples.
@@ -76,7 +78,11 @@ The source code of ENReT was developed with the assistance of large language mod
 
 ## Citation
 
-A citation will be added here when the accompanying article is available.
+If you use ENReT, please cite the software:
+
+> De Flaviis, R. (2026). *ENReT: Easy Non-linear Regression Tool* (Version 1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23839619
+
+The DOI above identifies version 1.0.0. To cite ENReT without referring to a specific version, use the DOI that represents all versions: https://doi.org/10.5281/zenodo.23839618. The citation of the accompanying article will be added here when it is available.
 
 ## License
 
