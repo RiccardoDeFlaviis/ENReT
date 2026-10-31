@@ -3,6 +3,14 @@ message: "If you use ENReT, please cite it using the metadata below."
 type: software
 title: "ENReT: Easy Non-linear Regression Tool"
 version: 1.0.0
+doi: 10.5281/zenodo.23839618
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23839618
+    description: "Concept DOI: all versions of ENReT"
+  - type: doi
+    value: 10.5281/zenodo.23839619
+    description: "DOI of version 1.0.0"
 abstract: >-
   ENReT is a free statistical tool for fitting nonlinear models, developed in R
   as a Shiny web application, optimized for Food Science and Technology but
