@@ -16,7 +16,7 @@ authors:
     given-names: "Riccardo"
     orcid: "https://orcid.org/0000-0002-6054-3133"
     affiliation: "Department of Bioscience and Technology for Food, Agriculture and Environment, University of Teramo, Via R. Balzarini 1, 64100 Teramo, Italy"
-repository-code: "https://github.com/USERNAME/ENReT"
+repository-code: "https://github.com/RiccardoDeFlaviis/ENReT"
 url: "https://enret.netlify.app"
 license: GPL-3.0-only
 keywords:
