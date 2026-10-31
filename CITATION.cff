@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use ENReT, please cite it using the metadata below."
+type: software
+title: "ENReT: Easy Non-linear Regression Tool"
+version: 1.0.0
+abstract: >-
+  ENReT is a free statistical tool for fitting nonlinear models, developed in R
+  as a Shiny web application, optimized for Food Science and Technology but
+  usable in any field. It provides built-in and custom models, uncertainty
+  estimation (linear approximation, profile likelihood and Monte Carlo),
+  weighted least squares, residual diagnostics, model comparison, batch
+  elaboration, shelf-life estimation and non-isothermal predictions, and was
+  validated against certified and published reference data.
+authors:
+  - family-names: "De Flaviis"
+    given-names: "Riccardo"
+    orcid: "https://orcid.org/0000-0002-6054-3133"
+    affiliation: "Department of Bioscience and Technology for Food, Agriculture and Environment, University of Teramo, Via R. Balzarini 1, 64100 Teramo, Italy"
+repository-code: "https://github.com/USERNAME/ENReT"
+url: "https://enret.netlify.app"
+license: GPL-3.0-only
+keywords:
+  - nonlinear regression
+  - curve fitting
+  - food science
+  - predictive microbiology
+  - R
+  - Shiny
