@@ -34,3 +34,18 @@ keywords:
   - predictive microbiology
   - R
   - Shiny
+preferred-citation:
+  type: article
+  status: preprint
+  title: "ENReT: An open-source R-based tool for non-linear modelling specifically implemented for Food Science and Technology applications"
+  authors:
+    - family-names: "De Flaviis"
+      given-names: "Riccardo"
+      orcid: "https://orcid.org/0000-0002-6054-3133"
+    - family-names: "Sacchetti"
+      given-names: "Giampiero"
+  journal: "Research Square"
+  year: 2026
+  month: 11
+  doi: 10.21203/rs.3.rs-11577802/v1
+  url: "https://doi.org/10.21203/rs.3.rs-11577802/v1"

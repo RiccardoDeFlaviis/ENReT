@@ -82,7 +82,11 @@ If you use ENReT, please cite the software:
 
 > De Flaviis, R. (2026). *ENReT: Easy Non-linear Regression Tool* (Version 1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23839619
 
-The DOI above identifies version 1.0.0. To cite ENReT without referring to a specific version, use the DOI that represents all versions: https://doi.org/10.5281/zenodo.23839618. The citation of the accompanying article will be added here when it is available.
+The DOI above identifies version 1.0.0. To cite ENReT without referring to a specific version, use the DOI that represents all versions: https://doi.org/10.5281/zenodo.23839618.
+
+ENReT is described in the accompanying article (preprint, not yet peer reviewed):
+
+> De Flaviis, R., & Sacchetti, G. (2026). *ENReT: An open-source R-based tool for non-linear modelling specifically implemented for Food Science and Technology applications* [Preprint]. Research Square. https://doi.org/10.21203/rs.3.rs-11577802/v1
 
 ## License
 
