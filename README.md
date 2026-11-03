@@ -37,11 +37,22 @@ The web version runs R in the browser (Shinylive / webR). It is suitable for eve
    install.packages(c("shiny", "bslib", "minpack.lm", "readxl", "writexl", "zip"))
    ```
 
-3. Download this repository (green **Code** button → **Download ZIP**), unzip it and start the app:
+3. Download this repository (green **Code** button → **Download ZIP**) and unzip it: you obtain a folder named `ENReT-main`, which contains `app.R`.
+4. Start the app, giving the path of that folder, for example:
 
    ```r
-   shiny::runApp("path/to/ENReT")
+   shiny::runApp("C:/Users/yourname/Downloads/ENReT-main")
    ```
+
+   In RStudio you can also open `app.R` from that folder and press **Run App**. The app opens in the browser or in the RStudio viewer; to stop it, press **Esc** in the R console (or the stop button in RStudio).
+
+Alternatively, steps 3 and 4 can be replaced by a single command, which downloads the repository and starts the app (an internet connection is needed each time):
+
+```r
+shiny::runGitHub("ENReT", "RiccardoDeFlaviis")
+```
+
+To run a specific version, download its archive from the **Releases** page of this repository, or from Zenodo.
 
 ### Repository structure
 
