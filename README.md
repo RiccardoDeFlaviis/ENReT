@@ -24,6 +24,8 @@ Version: **1.0.0**, the first public release (see [CHANGELOG.md](CHANGELOG.md) f
 
 ENReT runs in the browser, with no installation: **https://enret.netlify.app/**
 
+**Loading may take a while**: at the first opening the browser downloads R and the packages used by the application, which can take from several seconds to a minute or more, depending on the connection and the device. Keep the page open until the interface appears; later openings are usually faster, because the browser keeps these files in its cache.
+
 The web version runs R in the browser (Shinylive / webR). It is suitable for everyday analyses; for intensive computations (for example Monte Carlo with many iterations and Nelder-Mead with restarts, or Batch Elaboration with many samples) the local version in R is faster and has no browser memory limits.
 
 ## Run locally in R
