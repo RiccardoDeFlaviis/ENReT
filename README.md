@@ -109,9 +109,9 @@ If you use ENReT, please cite the article that describes it (preprint, not yet p
 
 To indicate the version of the software you used, please also cite it:
 
-> De Flaviis, R. (2026). *ENReT: Easy Non-linear Regression Tool* (Version 1.0.0) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.23839619
+> De Flaviis, R. (2026). *ENReT: Easy Non-linear Regression Tool* (Version 1.0.1) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.24061238
 
-The DOI above identifies version 1.0.0. To cite ENReT without referring to a specific version, use the DOI that represents all versions: https://doi.org/10.5281/zenodo.23839618.
+The DOI above identifies version 1.0.1. To cite ENReT without referring to a specific version, use the DOI that represents all versions: https://doi.org/10.5281/zenodo.23839618.
 
 ## License
 
