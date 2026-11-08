@@ -6,7 +6,7 @@
 
 **Before using the application, reading the [user guide](docs/ENReT_guide.pdf) is strongly recommended**: it explains how the application was conceived and developed, its theoretical basis, and how to use it, with guided examples.
 
-Version: **1.0.0**, the first public release (see [CHANGELOG.md](CHANGELOG.md) for the version history).
+Version: **1.0.1** (see [CHANGELOG.md](CHANGELOG.md) for the version history).
 
 ## Main features
 
@@ -83,7 +83,7 @@ Code comments are in English; internal function and variable names are in Italia
 
 - **User guide**: [`docs/ENReT_guide.pdf`](docs/ENReT_guide.pdf) - an introduction to the application, its structure and two guided examples (single fit and batch elaboration). Start here.
 - **Statistical details and validation**: [`docs/ENReT_statistical_details_v1.0.1.pdf`](docs/ENReT_statistical_details_v1.0.1.pdf) - the R functions used for the computations, the noteworthy statistical and numerical choices of the application, with their sources, and the numerical validation.
-- **Validation results**: [`docs/ENReT_v1.0.0_validation_results.xlsx`](docs/ENReT_v1.0.0_validation_results.xlsx) - workbook with the complete results of the validation (NIST, Bates & Watts, Carroll & Ruppert, ComBase).
+- **Validation results**: [`docs/ENReT_v1.0.0_validation_results.xlsx`](docs/ENReT_v1.0.0_validation_results.xlsx) - workbook with the complete results of the validation, carried out on version 1.0.0 (the least-squares results of version 1.0.1 are identical): NIST, Bates & Watts, Carroll & Ruppert, ComBase.
 - **Version history**: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Validation
