@@ -22,8 +22,19 @@ adatta_snapshot_a_res <- function(snapshot) {
     curve_boot_ricostruito <- t(apply(snapshot$mat_boot, 1, function(riga_par) {
       valuta_fn(riga_par, snapshot$x_griglia)
     }))
-    if (!is.null(snapshot$rmse) && is.finite(snapshot$rmse)) {
-      rumore_pred <- matrix(rnorm(length(curve_boot_ricostruito), mean = 0, sd = snapshot$rmse), nrow = nrow(curve_boot_ricostruito))
+    # Noise of a new observation generated as in the Single Fit: Gaussian with the sigma
+    # used there, or the resampled residuals of its Monte Carlo (kept with the saved
+    # fit). Fits saved by earlier versions, without this information: Gaussian with rmse.
+    n_rumore <- length(curve_boot_ricostruito)
+    valori_rumore <- if (identical(snapshot$tipo_rumore_mc, "gaussiano") && length(snapshot$sigma_mc) && is.finite(snapshot$sigma_mc)) {
+      rnorm(n_rumore, mean = 0, sd = snapshot$sigma_mc)
+    } else if (length(snapshot$residui_bootstrap)) {
+      sample(snapshot$residui_bootstrap, n_rumore, replace = TRUE)
+    } else if (!is.null(snapshot$rmse) && is.finite(snapshot$rmse)) {
+      rnorm(n_rumore, mean = 0, sd = snapshot$rmse)
+    } else NULL
+    if (!is.null(valori_rumore)) {
+      rumore_pred <- matrix(valori_rumore, nrow = nrow(curve_boot_ricostruito))
       # Weighted fit: noise brought back to the scale of each point of the curve.
       if (isTRUE(snapshot$ponderazione$attiva) && !is.null(snapshot$pesi))
         rumore_pred <- rumore_pred * sqrt(ifelse(curve_boot_ricostruito > 0, curve_boot_ricostruito^snapshot$ponderazione$zeta, NA_real_))
@@ -43,6 +54,7 @@ adatta_snapshot_a_res <- function(snapshot) {
     curve_boot = curve_boot_ricostruito,
     pred_boot = pred_boot_ricostruito,
     residui = residui_calcolati,
+    residui_bootstrap = snapshot$residui_bootstrap,
     cov = snapshot$cov,
     rmse = snapshot$rmse,
     ponderazione = snapshot$ponderazione,
@@ -110,7 +122,7 @@ output$sezione_risultato_inversa_ui <- renderUI({
     tags$h4("Result:"),
     verbatimTextOutput("risultato_inversa"),
     p(style = "font-size: 11px; color: #e67e22; line-height: 1.4;",
-      tags$strong("Note: "), "root-finding requires the model to be monotonic (single solution) within the search range. If the range contains more than one crossing of the target Y, only one root is returned."),
+      tags$strong("Note: "), "the search range is scanned for every crossing of the target Y. If there is more than one, the smallest X is returned and the others are listed in the result; narrow the search range to select another one."),
     br(),
     uiOutput("titolo_grafico_inversa"),
     p(style = "font-size: 13px; color: #7f8c8d;",
@@ -140,36 +152,27 @@ calcolo_inversa <- eventReactive(input$calcola_inversa, {
     return(list(successo = FALSE, messaggio = "Please enter a valid target Y value."))
   }
   
-  # ---- Search interval for uniroot ----
-  df_dati_orig <- res$df_originale
-  if (range_personalizzato_attivo(input$x_search_min_inversa, input$x_search_max_inversa)) {
-    intervallo_ricerca <- c(input$x_search_min_inversa, input$x_search_max_inversa)
-  } else {
-    intervallo_dati <- range(df_dati_orig$x, na.rm = TRUE)
-    ampiezza <- diff(intervallo_dati)
-    if (ampiezza == 0) ampiezza <- max(abs(intervallo_dati[1]), 1)
-    intervallo_ricerca <- intervallo_dati + c(-0.5, 0.5) * ampiezza
+  # ---- Search range: the X Search Range fields, pre-filled with the X range of
+  # the data whenever the dataset changes. If they are empty or not valid the
+  # calculation does not start (previously a range extended by 50% on each side
+  # was used, which could include meaningless values, e.g. negative times).
+  if (!range_personalizzato_attivo(input$x_search_min_inversa, input$x_search_max_inversa)) {
+    return(list(successo = FALSE, messaggio = "Please enter a valid X search range (Min smaller than Max). The fields are pre-filled with the X range of your data."))
   }
+  intervallo_ricerca <- c(input$x_search_min_inversa, input$x_search_max_inversa)
   
   funzione_obiettivo <- function(x) res$valuta(res$parametri, x) - y_target
-  
-  y_inf_check <- tryCatch(funzione_obiettivo(intervallo_ricerca[1]), error = function(e) NA)
-  y_sup_check <- tryCatch(funzione_obiettivo(intervallo_ricerca[2]), error = function(e) NA)
-  
-  if (any(is.na(c(y_inf_check, y_sup_check))) || !all(is.finite(c(y_inf_check, y_sup_check))) || sign(y_inf_check) == sign(y_sup_check)) {
+  ricerca <- trova_soluzioni_x(funzione_obiettivo, intervallo_ricerca[1], intervallo_ricerca[2])
+  if (length(ricerca$soluzioni) == 0) {
+    intervallo_curva <- ricerca$intervallo_obiettivo + y_target
     return(list(successo = FALSE, messaggio = paste0(
-      "No solution found for Y = ", round(y_target, 5), " within the search range [",
-      round(intervallo_ricerca[1], 4), ", ", round(intervallo_ricerca[2], 4),
-      "]. The model's predicted Y values at the two ends of this range are ",
-      round(y_inf_check + y_target, 5), " and ", round(y_sup_check + y_target, 5),
-      ". Try widening the X Search Range, or check that the target Y is actually reachable by this model in this region.")))
+      "The model does not reach Y = ", signif(y_target, 6), " within the X search range [", signif(intervallo_ricerca[1], 6), ", ", signif(intervallo_ricerca[2], 6), "]",
+      if (all(is.finite(intervallo_curva))) paste0(": in this range the predicted Y goes from ", signif(intervallo_curva[1], 6), " to ", signif(intervallo_curva[2], 6)) else "",
+      ". Check the target Y, or widen the search range (solutions outside the range of the data are extrapolations).")))
   }
-  
-  soluzione <- tryCatch(uniroot(funzione_obiettivo, interval = intervallo_ricerca, tol = 1e-10), error = function(e) NULL)
-  if (is.null(soluzione)) {
-    return(list(successo = FALSE, messaggio = "The root-finding algorithm failed to converge on a solution."))
-  }
-  x0 <- soluzione$root
+  # With more than one solution, the smallest X is returned and the others are reported.
+  x0 <- ricerca$soluzioni[1]
+  altre_soluzioni <- ricerca$soluzioni[-1]
   
   # ---- Error estimation on x0 ----
   z_val <- valore_critico(res$df)  # Student's t (df=n-p), converges to Z for large samples
@@ -192,18 +195,18 @@ calcolo_inversa <- eventReactive(input$calcola_inversa, {
       y_target_iter <- if (input$tipo_intervallo_inversa == "predizione") {
         # With weighted regression: weighted residual brought back to the scale of the
         # sought value (variance sigma^2 y_target^zeta); unchanged without weights.
-        y_target + sample(residui_diagnostici(res), 1) * sqrt(varianza_relativa(res, y_target))
+        # Same residuals as the prediction band (leverage-corrected, kept by the
+        # Monte Carlo of the fit); previously the raw residuals, which are smaller
+        # than the errors, giving a slightly too narrow interval.
+        y_target + sample(if (length(res$residui_bootstrap)) res$residui_bootstrap else residui_diagnostici(res), 1) * sqrt(varianza_relativa(res, y_target))
       } else {
         y_target
       }
       
+      # Solution of each bootstrap curve: the one closest to the main solution,
+      # so that all iterations refer to the same crossing of the target.
       obiettivo_boot <- function(x) res$valuta(p_boot, x) - y_target_iter
-      y_inf_b <- tryCatch(obiettivo_boot(intervallo_ricerca[1]), error = function(e) NA)
-      y_sup_b <- tryCatch(obiettivo_boot(intervallo_ricerca[2]), error = function(e) NA)
-      if (any(is.na(c(y_inf_b, y_sup_b))) || !all(is.finite(c(y_inf_b, y_sup_b))) || sign(y_inf_b) == sign(y_sup_b)) next
-      
-      sol_b <- tryCatch(uniroot(obiettivo_boot, interval = intervallo_ricerca, tol = 1e-8), error = function(e) NULL)
-      if (!is.null(sol_b)) x0_boot[i] <- sol_b$root
+      x0_boot[i] <- soluzione_piu_vicina(trova_soluzioni_x(obiettivo_boot, intervallo_ricerca[1], intervallo_ricerca[2])$soluzioni, x0)
     }
     
     x0_boot <- x0_boot[is.finite(x0_boot)]
@@ -227,13 +230,7 @@ calcolo_inversa <- eventReactive(input$calcola_inversa, {
       
       df_dx <- (res$valuta(res$parametri, x0 + h_x) - res$valuta(res$parametri, x0 - h_x)) / (2 * h_x)
       
-      gradiente_par <- numeric(length(res$parametri))
-      for (j in seq_along(res$parametri)) {
-        h_j <- passo_derivata(res$parametri[j])
-        p_piu <- res$parametri; p_piu[j] <- p_piu[j] + h_j
-        p_meno <- res$parametri; p_meno[j] <- p_meno[j] - h_j
-        gradiente_par[j] <- (res$valuta(p_piu, x0) - res$valuta(p_meno, x0)) / (2 * h_j)
-      }
+      gradiente_par <- as.numeric(gradiente_parametri(res, x0))
       
       var_param <- as.numeric(t(gradiente_par) %*% res$cov %*% gradiente_par)
       var_y <- if (input$tipo_intervallo_inversa == "predizione") res$rmse^2 * varianza_relativa(res, y_target) else 0
@@ -252,7 +249,7 @@ calcolo_inversa <- eventReactive(input$calcola_inversa, {
     }
   }
   
-  list(successo = TRUE, x0 = x0, y_target = y_target, errore_x = errore_x,
+  list(successo = TRUE, x0 = x0, altre_soluzioni = altre_soluzioni, y_target = y_target, errore_x = errore_x,
        ci_inf = ci_inf, ci_sup = ci_sup, metodo = metodo_errore_usato,
        intervallo_ricerca = intervallo_ricerca,
        x0_boot = if (exists("x0_boot", inherits = FALSE)) x0_boot else NULL)
@@ -271,6 +268,9 @@ output$risultato_inversa <- renderPrint({
   
   cat(sprintf("Target %s value: %.5f\n", input$label_y, risultato$y_target))
   cat(sprintf("Search Range Used: [%.5f, %.5f]\n\n", risultato$intervallo_ricerca[1], risultato$intervallo_ricerca[2]))
+  if (length(risultato$altre_soluzioni) > 0)
+    cat(sprintf("NOTE: the target Y is reached %d times in the search range (X = %s); the result refers to X = %s. Narrow the search range to select another solution.\n\n",
+                length(risultato$altre_soluzioni) + 1, paste(signif(c(risultato$x0, risultato$altre_soluzioni), 6), collapse = ", "), signif(risultato$x0, 6)))
   cat(sprintf("Estimated %s value: %.5f\n", input$label_x, risultato$x0))
   
   if (!is.na(risultato$errore_x)) {

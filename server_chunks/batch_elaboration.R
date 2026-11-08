@@ -346,6 +346,7 @@ leggi_dati_batch <- function() {
 adatta_campione_batch <- function(df, formula_stringa, guesses, fissi, limiti_inferiori, limiti_superiori, tipo_loss, algoritmo, maxiter_scelto,
                                    usa_monte_carlo = FALSE, n_boot = 100, tipo_rumore = "bootstrap", sigma_noto = NA, ponderazione = NULL) {
   n <- nrow(df); p <- length(guesses)
+  residui_boot <- NULL   # Monte Carlo residuals, kept in the result (as in Single Fit)
   # Weighted regression (MSE only), as in Single Fit: weights w = 1/yhat^zeta
   # with iteratively reweighted least squares. ponderazione = NULL (or not
   # active): radice_pesi stays NULL and the computation is identical to the usual one.
@@ -401,7 +402,7 @@ adatta_campione_batch <- function(df, formula_stringa, guesses, fissi, limiti_in
         if (any(!is.finite(y_pred))) return(rep(1e5, n))
         if (is.null(radice_pesi)) y_target - y_pred else radice_pesi * (y_target - y_pred)
       }
-      fit <- nls.lm(par = guess_iniziale, fn = residui_lm_locale, jac = jacobiano_residui_locale, lower = limiti_inferiori, upper = limiti_superiori,
+      fit <- nls_lm_vincoli(par = guess_iniziale, fn = residui_lm_locale, jac = jacobiano_residui_locale, lower = limiti_inferiori, upper = limiti_superiori,
                     control = controllo_lm(maxiter_scelto, length(guess_iniziale), tolleranza))
       list(par = fit$par, hessian = fit$hessian, convergenza_vera = fit$info %in% 1:4)
     } else if (algoritmo == "L-BFGS-B") {
@@ -454,7 +455,7 @@ adatta_campione_batch <- function(df, formula_stringa, guesses, fissi, limiti_in
   residui <- df$y - y_pred
   sse <- sum(residui^2)
   # Value of the loss ACTUALLY minimized (not necessarily SSE:
-  # for Huber/MAE/Log10Cosh/RMSLE it is a different number, computed with the
+  # for MAE/Log10Cosh/RMSLE it is a different number, computed with the
   # same function used during the search) - R2/AIC/BIC instead always remain
   # based on SSE by definition of those metrics, regardless of
   # which loss was chosen to drive the optimization.
@@ -567,6 +568,10 @@ adatta_campione_batch <- function(df, formula_stringa, guesses, fissi, limiti_in
        aic = aic, aicc = aicc, bic = bic, convergenza_vera = convergenza_vera,
        x = df$x, y = df$y, x_griglia = seq(min(df$x), max(df$x), length.out = 150),
        messaggio = if (convergenza_vera) "OK" else "Did not fully converge",
+       residui_bootstrap = residui_boot,
+       parametri_su_limite = if (algoritmo_effettivo(algoritmo, tipo_loss) %in% ALGORITMI_CON_VINCOLI) parametri_su_limite(parametri_ottimi, limiti_inferiori, limiti_superiori) else character(0),
+       limiti_ignorati = !(algoritmo_effettivo(algoritmo, tipo_loss) %in% ALGORITMI_CON_VINCOLI) && limiti_presenti(limiti_inferiori, limiti_superiori),
+       parametri_fuori_limiti = if (!(algoritmo_effettivo(algoritmo, tipo_loss) %in% ALGORITMI_CON_VINCOLI)) parametri_fuori_limiti(parametri_ottimi, limiti_inferiori, limiti_superiori) else character(0),
        ponderazione = if (pesato) modifyList(ponderazione, list(iterazioni_irls = iterazioni_irls)) else list(attiva = FALSE), pesi = pesi)
 }
 
@@ -1024,6 +1029,15 @@ observeEvent(input$esegui_batch, {
   sl_risultato(NULL)
   showNotification(paste0("Batch complete: ", n_successo, "/", n_campioni, " samples fitted successfully."), 
                     type = if (n_successo == n_campioni) "message" else "warning", duration = 8)
+  if (input$tipo_loss == "mae" && input$algoritmo %in% c("BFGS", "L-BFGS-B"))
+    showNotification("The MAE loss is not differentiable: BFGS and L-BFGS-B, which use derivatives, may stop far from the minimum. Nelder-Mead is recommended with MAE.", type = "warning", duration = 12)
+  n_su_limite <- sum(sapply(risultati, function(r) length(r$parametri_su_limite) > 0))
+  if (n_su_limite > 0)
+    showNotification(paste0(n_su_limite, " sample(s) with parameter(s) on a bound (column On Bound): their standard errors and confidence intervals are not reliable."), type = "warning", duration = 12)
+  n_fuori <- sum(sapply(risultati, function(r) length(r$parametri_fuori_limiti) > 0))
+  if (n_fuori > 0)
+    showNotification(paste0(input$algoritmo, " does not use parameter bounds: they were ignored, and in ", n_fuori,
+                            " sample(s) some estimates are outside them. Use Levenberg-Marquardt or L-BFGS-B to apply the bounds."), type = "warning", duration = 12)
 })
 
 output$stato_batch <- renderText({
@@ -1248,6 +1262,8 @@ batch_tabella_parametri_df <- reactive({
   righe <- lapply(br$risultati, function(r) {
     if (!isTRUE(r$successo)) return(data.frame(Sample = r$nome, Converged = "NO", stringsAsFactors = FALSE))
     riga <- data.frame(Sample = r$nome, Converged = if (isTRUE(r$convergenza_vera)) "Yes" else "NO (caution)", stringsAsFactors = FALSE)
+    if (any(sapply(br$risultati, function(q) length(q$parametri_su_limite) > 0)))
+      riga$On_Bound <- if (length(r$parametri_su_limite)) paste(sapply(r$parametri_su_limite, function(n) etichetta_parametro_batch(n, br)), collapse = ", ") else ""
     for (nome_par in names(r$parametri)) {
       etichetta <- etichetta_parametro_batch(nome_par, br)
       riga[[paste0(etichetta, "_Estimate")]] <- round(r$parametri[[nome_par]], 5)

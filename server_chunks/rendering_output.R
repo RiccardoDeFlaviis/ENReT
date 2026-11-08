@@ -233,6 +233,30 @@ controllo_lm <- function(maxiter, n_parametri, tolleranza = 1e-12) {
   nls.lm.control(maxiter = iterazioni, maxfev = max(100000, iterazioni * (n_parametri + 1) * 10), ftol = tolleranza, ptol = tolleranza)
 }
 
+# ---- Levenberg-Marquardt with bounds ----
+# nls.lm() keeps the parameters within the bounds by moving them back onto the
+# bound; with the analytical Jacobian this projection is not reflected in the
+# derivatives, so when a parameter ends on a bound the other parameters can stop
+# at a non-optimal point while convergence is reported (Michaelis-Menten on the
+# Puromycin data with Vm <= 200: K = 0.05608 instead of 0.05280). With the
+# numerical Jacobian the bound is handled correctly. Therefore, only when a
+# parameter ends on a bound, the fit is resumed from that point with the
+# numerical Jacobian and the result with the lower sum of squares is kept; the
+# matrix J^T J returned for the covariance is recomputed with the analytical
+# Jacobian, as in the other fits. Without active bounds the result is exactly
+# that of nls.lm().
+nls_lm_vincoli <- function(par, fn, jac, lower, upper, control, ...) {
+  fit <- nls.lm(par = par, fn = fn, jac = jac, lower = lower, upper = upper, control = control, ...)
+  su_limite <- function(p, b) is.finite(b) & abs(p - b) <= 1e-8 * pmax(1, abs(b))
+  if (!any(su_limite(fit$par, lower) | su_limite(fit$par, upper))) return(fit)
+  fit2 <- tryCatch(nls.lm(par = fit$par, fn = fn, lower = lower, upper = upper, control = control, ...), error = function(e) NULL)
+  if (is.null(fit2) || !is.finite(fit2$deviance) || fit2$deviance >= fit$deviance) return(fit)
+  J <- tryCatch(jac(fit2$par, ...), error = function(e) NULL)
+  if (!is.null(J) && all(is.finite(J))) fit2$hessian <- crossprod(J)
+  fit2$niter <- fit$niter + fit2$niter
+  fit2
+}
+
 # ---- Residuals to be resampled in the residual bootstrap ----
 # Davison & Hinkley (1997): modified residuals r_j = e_j / (1 - h_j)^(1/2)
 # (section 6.2.1, eq. 6.9, p. 259), which have the same variance as the errors,
@@ -499,16 +523,94 @@ crea_jacobiano_modello <- function(formula_stringa, nomi_liberi) {
 # relative to the magnitude of each parameter (cube root of the
 # machine precision), so it also works with very small
 # or very large parameters.
+# For a parameter equal to zero (|value| < 1e-8) the step uses a unit scale
+# (the usual "typical size" convention of numerical optimization): a step
+# proportional to the value would be about 1e-14, and the difference would be
+# dominated by rounding errors (e.g. a lag fixed on its bound L >= 0). When the
+# model cannot be evaluated on one side (e.g. a negative value of a parameter
+# on the bound zero), a one-sided difference is used.
+scala_passo <- function(valore) if (abs(valore) < 1e-8) 1 else abs(valore)
 jacobiano_numerico <- function(f, parametri) {
   passo_base <- .Machine$double.eps^(1/3)
   J <- sapply(seq_along(parametri), function(j) {
-    h <- passo_base * max(abs(parametri[j]), 1e-8)
+    h <- passo_base * scala_passo(parametri[j])
     p_piu <- parametri; p_meno <- parametri
     p_piu[j] <- parametri[j] + h; p_meno[j] <- parametri[j] - h
-    (f(p_piu) - f(p_meno)) / (2 * h)
+    f_piu <- tryCatch(f(p_piu), error = function(e) NA); f_meno <- tryCatch(f(p_meno), error = function(e) NA)
+    if (all(is.finite(f_piu)) && all(is.finite(f_meno))) return((f_piu - f_meno) / (2 * h))
+    f_0 <- f(parametri)
+    if (all(is.finite(f_piu))) (f_piu - f_0) / h else (f_0 - f_meno) / h
   })
   if (is.null(dim(J))) J <- matrix(J, ncol = length(parametri))
   colnames(J) <- names(parametri)
+  J
+}
+
+# ---- Parameters on a bound / outside the bounds ----
+# A parameter that ends on a bound has a one-sided uncertainty: its classic
+# standard error and confidence interval, computed as if it were free, are not
+# reliable (e.g. Michaelis-Menten with Vm <= 200: Vm = 200 with an interval
+# extending beyond 200). BFGS and Nelder-Mead do not use bounds at all.
+# These functions identify both cases, with the same tolerance as nls_lm_vincoli().
+ALGORITMI_CON_VINCOLI <- c("LM", "L-BFGS-B")
+parametri_su_limite <- function(parametri, lower, upper) {
+  n <- length(parametri); if (n == 0) return(character(0))
+  lower <- rep_len(if (is.null(lower)) -Inf else as.numeric(lower), n); upper <- rep_len(if (is.null(upper)) Inf else as.numeric(upper), n)
+  p <- as.numeric(parametri); su <- function(b) is.finite(b) & abs(p - b) <= 1e-8 * pmax(1, abs(b))
+  names(parametri)[su(lower) | su(upper)]
+}
+parametri_fuori_limiti <- function(parametri, lower, upper) {
+  n <- length(parametri); if (n == 0) return(character(0))
+  lower <- rep_len(if (is.null(lower)) -Inf else as.numeric(lower), n); upper <- rep_len(if (is.null(upper)) Inf else as.numeric(upper), n)
+  p <- as.numeric(parametri)
+  names(parametri)[(is.finite(lower) & p < lower - 1e-8 * pmax(1, abs(lower))) | (is.finite(upper) & p > upper + 1e-8 * pmax(1, abs(upper)))]
+}
+limiti_presenti <- function(lower, upper) any(is.finite(as.numeric(lower))) || any(is.finite(as.numeric(upper)))
+
+# ---- X at which a curve reaches a target value ----
+# Shared by Inverse Prediction and Shelf-Life (Batch and Model Comparison).
+# The search range is scanned on a grid to find every crossing of the target,
+# not only the two ends: with a non-monotone curve (e.g. with a maximum) the
+# ends can lie on the same side even when the target is reached twice. Each
+# solution is refined with uniroot(), with a tolerance relative to the size of
+# the range (Shelf-Life previously used the absolute default, about 1e-4). A
+# change of sign through a vertical asymptote is not a solution, so a root is
+# accepted only if the curve there is really close to the target. Returns the
+# solutions in increasing order and the range of the curve over the scan.
+trova_soluzioni_x <- function(obiettivo, x_min, x_max, n_scan = 200) {
+  x <- seq(x_min, x_max, length.out = n_scan)
+  y <- vapply(x, function(v) { r <- tryCatch(as.numeric(obiettivo(v))[1], error = function(e) NA_real_); if (length(r)) r else NA_real_ }, numeric(1))
+  ok <- is.finite(y)
+  risultato <- list(soluzioni = numeric(0), intervallo_obiettivo = if (any(ok)) range(y[ok]) else c(NA_real_, NA_real_))
+  if (sum(ok) < 2) return(risultato)
+  xv <- x[ok]; yv <- y[ok]
+  tolleranza <- 1e-10 * max(abs(x_min), abs(x_max), x_max - x_min)
+  scala_y <- max(1, diff(range(yv)))
+  soluzioni <- xv[yv == 0]
+  for (i in which(yv[-length(yv)] * yv[-1] < 0)) {
+    r <- tryCatch(uniroot(obiettivo, c(xv[i], xv[i + 1]), tol = tolleranza)$root, error = function(e) NA_real_)
+    if (is.finite(r)) { v <- tryCatch(obiettivo(r), error = function(e) NA_real_)
+      if (is.finite(v) && abs(v) <= 1e-6 * scala_y) soluzioni <- c(soluzioni, r) }
+  }
+  risultato$soluzioni <- sort(unique(soluzioni))
+  risultato
+}
+# Solution closest to a reference (e.g. the bootstrap solution matching the main one).
+soluzione_piu_vicina <- function(soluzioni, riferimento) if (length(soluzioni)) soluzioni[which.min(abs(soluzioni - riferimento))] else NA_real_
+
+# ---- Derivatives of the fitted curve with respect to the parameters ----
+# n x p matrix of df/dtheta at the points x, for the delta-method calculations
+# (confidence and prediction bands, sensitivity, exports, Inverse Prediction).
+# Analytical derivatives (crea_jacobiano_modello), the same used by the fit;
+# numerical ones (jacobiano_numerico) only if the formula cannot be
+# differentiated symbolically. Previously these calculations used their own
+# central differences with step 1e-6 * |value|: for a parameter equal to zero
+# the step was about 1e-14 and the bands became very wide and jagged.
+gradiente_parametri <- function(res, x) {
+  fissi <- if (is.null(res$fissi)) list() else res$fissi
+  J <- tryCatch(crea_jacobiano_modello(res$formula, names(res$parametri))(res$parametri, x, fissi), error = function(e) NULL)
+  if (is.null(J) || !all(is.finite(J))) J <- jacobiano_numerico(function(p) res$valuta(p, x), res$parametri)
+  if (is.null(dim(J))) J <- matrix(J, ncol = length(res$parametri))
   J
 }
 
@@ -884,7 +986,9 @@ output$tabella_parametri_stimati <- renderTable({
   # renderTable below - so the only "real" HTML that reaches the browser
   # is the one we build ourselves in a controlled way, not free
   # text from the user.
-  tab$Parameter <- sapply(tab$Parameter, function(n) simbolo_a_html(simbolo_visualizzazione(n)))
+  su_limite <- names(res$parametri) %in% res$parametri_su_limite
+  tab$Parameter <- paste0(sapply(tab$Parameter, function(n) simbolo_a_html(simbolo_visualizzazione(n))),
+                          ifelse(su_limite, " <span style='color:#e67e22;'>(on bound)</span>", ""))
   colnames(tab) <- gsub("_", " ", colnames(tab))
   tab
 }, striped = TRUE, hover = TRUE, bordered = TRUE, na = "N/A", sanitize.text.function = function(x) x)

@@ -161,7 +161,8 @@ MODEL_REGISTRY <- list(
     # which is why the ratio Nmax/N0 becomes exp(Nmax - N0) - numerically
     # verified to give results identical to the version with raw data.
     formula = "N0 + MU*(x + (1/MU)*log(exp(-MU*x) + exp(-h0) - exp(-MU*x-h0))) - log(1 + (exp(MU*(x + (1/MU)*log(exp(-MU*x) + exp(-h0) - exp(-MU*x-h0))))-1)/exp(Nmax-N0))",
-    display = "Active function: y = N0 + MU*A(x) - Ln(1 + (exp(MU*A(x))-1)/exp(Nmax-N0)), with A(x) = x + (1/MU)*Ln(exp(-MU*x) + exp(-h0) - exp(-MU*x-h0))   [N0 and Nmax are in Log scale]",
+    display = "Active function: y = N0 + MU*A(x) - Ln(1 + (exp(MU*A(x))-1)/exp(Nmax-N0)), with A(x) = x + (1/MU)*Ln(exp(-MU*x) + exp(-h0) - exp(-MU*x-h0))   [N0 and Nmax: natural log of the counts, ln]",
+    nota = "This model is written for the natural logarithm of the counts, ln(CFU), as recommended by ComBase: with log10 counts the lag and the maximum rate are biased (by about 17-21% on the ComBase curves). For log10 data, multiply the counts by ln 10 = 2.302585 before fitting (then divide N0, Nmax and MU by 2.302585; the lag is h0/MU), or enter the log10 form of the model as a custom formula (statistical document, section 4.4).",
     # Guesses with limits: MU>0 and h0>=0 are not just convenient but
     # mathematically NECESSARY - verified on 10000 random combinations
     # that with these constraints the expression inside the logarithm always stays
@@ -176,6 +177,7 @@ MODEL_REGISTRY <- list(
     group = "Advanced Growth Models", categoria = "Microbial Growth", label = "Reparameterized Baranyi",
     formula = "N0 + A + log((-1 + exp(MU * L) + exp(MU * x)) / (-1 + exp(MU * x) + exp(MU * L + A)))",
     display = "Active function: y = N0 + A + log((-1 + exp(MU * L) + exp(MU * x)) / (-1 + exp(MU * x) + exp(MU * L + A)))",
+    nota = "This model is written for the natural logarithm of the counts, ln(CFU), as recommended by ComBase: with log10 counts the lag and the maximum rate are biased (by about 17-21% on the ComBase curves). For log10 data, multiply the counts by ln 10 = 2.302585 before fitting (then divide N0, A and MU by 2.302585; the lag L does not change), or enter the log10 form of the model as a custom formula (statistical document, section 4.4).",
     guess = "N0=1, A=7[0.001,], MU=0.8[0,], L=1.5[0,]",
     simboli = c(N0 = "N[0]", MU = "mu[max]", L = "lambda")
   ),

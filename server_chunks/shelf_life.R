@@ -190,49 +190,32 @@ output$sl_tabella_temperature <- renderUI({
   )
 })
 
-# ---- Robust root-finding: instead of calling uniroot() directly
-# on the interval [x_min, x_max] chosen by the user (which uniroot() ALWAYS
-# evaluates also at the ends, for its check on the sign change),
-# it first scans many intermediate points, discards the non-finite ones (overflow
-# or underflow of the exponential terms of the model - a real problem
-# discovered and numerically verified: with a too wide range, exp() can
-# overflow to Inf both in the numerator and in the denominator in some
-# models, giving Inf/Inf = NaN exactly at the point that uniroot() checks
-# first), and calls uniroot() only on the FIRST finite sub-interval with a
-# sign change found - much more stable than the full range.
-trova_intervallo_valido <- function(obiettivo, x_min, x_max, n_scan = 200) {
-  x_scan <- seq(x_min, x_max, length.out = n_scan)
-  y_scan <- sapply(x_scan, function(x) tryCatch(obiettivo(x), error = function(e) NA_real_))
-  validi <- is.finite(y_scan)
-  if (sum(validi) < 2) return(NULL)
-  x_validi <- x_scan[validi]
-  y_validi <- y_scan[validi]
-  segni <- sign(y_validi)
-  cambi <- which(diff(segni) != 0)
-  if (length(cambi) == 0) return(NULL)
-  i <- cambi[1]
-  c(x_validi[i], x_validi[i + 1])
-}
-
 # ---- Root-finding: point shelf life of a sample ----
+# First crossing of the critical value (smallest X), with the number of
+# crossings found in the range as an attribute (trova_soluzioni_x()).
 trova_radice_campione <- function(parametri, formula_stringa, y_critico, x_min, x_max) {
   obiettivo <- function(x) valuta_formula_generica(formula_stringa, as.list(parametri), x) - y_critico
-  intervallo <- trova_intervallo_valido(obiettivo, x_min, x_max)
-  if (is.null(intervallo)) return(NA_real_)
-  tryCatch(uniroot(obiettivo, interval = intervallo)$root, error = function(e) NA_real_)
+  soluzioni <- trova_soluzioni_x(obiettivo, x_min, x_max)$soluzioni
+  x0 <- if (length(soluzioni)) soluzioni[1] else NA_real_
+  attr(x0, "n_soluzioni") <- length(soluzioni)
+  x0
 }
 
 # ---- Empirical bootstrap distribution of the shelf life (Monte Carlo samples) ----
-trova_distribuzione_sl_mc <- function(mat_boot, formula_stringa, y_critico, x_min, x_max) {
+# For each bootstrap curve, the crossing closest to the point shelf life
+# (riferimento), so that all iterations refer to the same crossing. With
+# "New Observation" (rumore not NULL) a resampled residual is added to the
+# critical value at every iteration, as in Inverse Prediction: the interval then
+# includes the variability of a new observation, as with the delta method.
+trova_distribuzione_sl_mc <- function(mat_boot, formula_stringa, y_critico, x_min, x_max, riferimento, rumore = NULL) {
   n_boot <- nrow(mat_boot)
   sl_boot <- rep(NA_real_, n_boot)
   for (b in seq_len(n_boot)) {
     par_b <- mat_boot[b, ]
     if (any(!is.finite(par_b))) next
-    obiettivo <- function(x) valuta_formula_generica(formula_stringa, as.list(par_b), x) - y_critico
-    intervallo <- trova_intervallo_valido(obiettivo, x_min, x_max)
-    if (is.null(intervallo)) next
-    sl_boot[b] <- tryCatch(uniroot(obiettivo, interval = intervallo)$root, error = function(e) NA_real_)
+    y_critico_b <- if (length(rumore)) y_critico + sample(rumore, 1) else y_critico
+    obiettivo <- function(x) valuta_formula_generica(formula_stringa, as.list(par_b), x) - y_critico_b
+    sl_boot[b] <- soluzione_piu_vicina(trova_soluzioni_x(obiettivo, x_min, x_max)$soluzioni, riferimento)
   }
   sl_boot[is.finite(sl_boot)]
 }
@@ -247,13 +230,11 @@ calcola_se_sl_delta_method <- function(parametri, cov, rmse, formula_stringa, x0
   df_dx <- (valuta_formula_generica(formula_stringa, valori, x0 + h_x) - valuta_formula_generica(formula_stringa, valori, x0 - h_x)) / (2 * h_x)
   if (is.na(df_dx) || abs(df_dx) < 1e-12) return(NA_real_)
   
-  gradiente_par <- numeric(length(parametri))
-  for (j in seq_along(parametri)) {
-    h_j <- passo_derivata(parametri[j])
-    p_piu <- parametri; p_piu[j] <- p_piu[j] + h_j
-    p_meno <- parametri; p_meno[j] <- p_meno[j] - h_j
-    gradiente_par[j] <- (valuta_formula_generica(formula_stringa, as.list(p_piu), x0) - valuta_formula_generica(formula_stringa, as.list(p_meno), x0)) / (2 * h_j)
-  }
+  # Analytical derivatives with respect to the parameters (numerical only if the
+  # formula cannot be differentiated symbolically), as in the single fit.
+  gradiente_par <- as.numeric(tryCatch(crea_jacobiano_modello(formula_stringa, names(parametri))(parametri, x0), error = function(e) NULL))
+  if (length(gradiente_par) != length(parametri) || !all(is.finite(gradiente_par)))
+    gradiente_par <- as.numeric(jacobiano_numerico(function(p) valuta_formula_generica(formula_stringa, as.list(p), x0), parametri))
   
   var_param <- as.numeric(t(gradiente_par) %*% cov %*% gradiente_par)
   var_y <- if (tipo_intervallo == "predizione") rmse^2 else 0
@@ -266,12 +247,16 @@ calcola_se_sl_delta_method <- function(parametri, cov, rmse, formula_stringa, x0
 # propagable uncertainty). ----
 costruisci_fonte_sl <- function(r, formula_stringa, y_critico, x_min, x_max, tipo_intervallo) {
   x0 <- trova_radice_campione(r$parametri, formula_stringa, y_critico, x_min, x_max)
+  n_soluzioni <- attr(x0, "n_soluzioni"); x0 <- as.numeric(x0)
   if (is.na(x0)) return(list(successo = FALSE, messaggio = "No root found in the given X search range."))
   
   if (!is.null(r$mat_boot)) {
-    sl_boot <- trova_distribuzione_sl_mc(r$mat_boot, formula_stringa, y_critico, x_min, x_max)
+    # New observation: residuals of the Monte Carlo of the fit, brought back to the
+    # scale of the critical value with weighted regression (as in Inverse Prediction).
+    rumore <- if (identical(tipo_intervallo, "predizione") && length(r$residui_bootstrap)) r$residui_bootstrap * sqrt(varianza_relativa(r, y_critico)) else NULL
+    sl_boot <- trova_distribuzione_sl_mc(r$mat_boot, formula_stringa, y_critico, x_min, x_max, x0, rumore)
     if (length(sl_boot) >= 10) {
-      return(list(successo = TRUE, tipo = "empirico", valori = sl_boot, puntuale = x0, se = sd(sl_boot)))
+      return(list(successo = TRUE, tipo = "empirico", valori = sl_boot, puntuale = x0, se = sd(sl_boot), n_soluzioni = n_soluzioni))
     }
   }
   if (!is.null(r$cov)) {
@@ -279,10 +264,10 @@ costruisci_fonte_sl <- function(r, formula_stringa, y_critico, x_min, x_max, tip
     # the curve equals y_critico, is sigma^2 y_critico^zeta; without weights sigma^2.
     se_delta <- calcola_se_sl_delta_method(r$parametri, r$cov, r$rmse * sqrt(varianza_relativa(r, y_critico)), formula_stringa, x0, tipo_intervallo)
     if (!is.na(se_delta)) {
-      return(list(successo = TRUE, tipo = "gaussiano", media = x0, se = se_delta, puntuale = x0, df = r$df))
+      return(list(successo = TRUE, tipo = "gaussiano", media = x0, se = se_delta, puntuale = x0, df = r$df, n_soluzioni = n_soluzioni))
     }
   }
-  list(successo = TRUE, tipo = "solo_punto", puntuale = x0, se = NA_real_)
+  list(successo = TRUE, tipo = "solo_punto", puntuale = x0, se = NA_real_, n_soluzioni = n_soluzioni)
 }
 
 # ---- Main run: nested Arrhenius bootstrap ----
@@ -417,6 +402,11 @@ observeEvent(input$sl_esegui_analisi, {
   falliti <- names(Filter(function(f) !isTRUE(f$successo), fonti))
   if (length(falliti) > 0) {
     showNotification(paste("Could not find a shelf life for:", paste(falliti, collapse = ", "), "- try widening the X Search Range."), type = "warning", duration = 10)
+  }
+  multiple <- names(Filter(function(f) isTRUE(f$successo) && isTRUE(f$n_soluzioni > 1), fonti))
+  if (length(multiple) > 0) {
+    showNotification(paste0("The critical value is reached more than once in the X search range for: ", paste(multiple, collapse = ", "),
+                            ". The shelf life refers to the first crossing (smallest X); narrow the X search range to select another one."), type = "warning", duration = 12)
   }
   fonti_ok <- fonti[sapply(fonti, function(f) isTRUE(f$successo))]
   if (length(fonti_ok) < 3) {

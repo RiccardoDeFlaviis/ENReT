@@ -131,12 +131,6 @@ calcola_loss_generica <- function(y_pred, y, tipo_loss, pesi = NULL) {
   switch(tipo_loss,
          "mse" = if (is.null(pesi)) sum(errori^2, na.rm = TRUE) else sum(pesi * errori^2, na.rm = TRUE),
          "mae" = sum(abs(errori), na.rm = TRUE),
-         "huber" = {
-           delta <- 1.345 * mad(errori, na.rm = TRUE)
-           if (is.na(delta) || delta == 0) delta <- 1.0
-           condizione <- abs(errori) <= delta
-           sum(ifelse(condizione, 0.5 * (errori^2), delta * (abs(errori) - 0.5 * delta)), na.rm = TRUE)
-         },
          "log10cosh" = {
            log_cosh <- ifelse(abs(errori) < 20, log(cosh(errori)), abs(errori) - log(2))
            sum(log_cosh / log(10), na.rm = TRUE)

@@ -141,6 +141,9 @@ esegui_add_a_confronto <- function(silenzioso = FALSE) {
     x_dati = res$df_originale$x,
     y_dati = res$df_originale$y,
     residui = res$residui,
+    residui_bootstrap = res$residui_bootstrap,
+    tipo_rumore_mc = res$tipo_rumore_mc,
+    sigma_mc = res$sigma_mc,
     mat_boot = res$mat_boot_params,
     convergenza_vera = isTRUE(res$convergenza_vera),
     simboli_modello = as.list(simboli_parametri()),
@@ -1319,7 +1322,7 @@ observeEvent(input$mc_sl_esegui_analisi, {
   withProgress(message = "Finding shelf life for each fit...", value = 0, {
     for (i in seq_along(lista)) {
       s <- lista[[i]]
-      res_adattato <- list(parametri = s$parametri, mat_boot = s$mat_boot, cov = s$cov, rmse = s$rmse, df = s$df, ponderazione = s$ponderazione, pesi = s$pesi)
+      res_adattato <- list(parametri = s$parametri, mat_boot = s$mat_boot, cov = s$cov, rmse = s$rmse, df = s$df, ponderazione = s$ponderazione, pesi = s$pesi, residui_bootstrap = s$residui_bootstrap)
       fonti[[nomi[i]]] <- costruisci_fonte_sl(res_adattato, s$formula, y_critico, x_min, x_max, input$mc_sl_tipo_intervallo)
       incProgress(1 / length(lista))
     }
@@ -1328,6 +1331,11 @@ observeEvent(input$mc_sl_esegui_analisi, {
   falliti <- names(Filter(function(f) !isTRUE(f$successo), fonti))
   if (length(falliti) > 0) {
     showNotification(paste("Could not find a shelf life for:", paste(falliti, collapse = ", "), "- try widening the X Search Range."), type = "warning", duration = 10)
+  }
+  multiple <- names(Filter(function(f) isTRUE(f$successo) && isTRUE(f$n_soluzioni > 1), fonti))
+  if (length(multiple) > 0) {
+    showNotification(paste0("The critical value is reached more than once in the X search range for: ", paste(multiple, collapse = ", "),
+                            ". The shelf life refers to the first crossing (smallest X); narrow the X search range to select another one."), type = "warning", duration = 12)
   }
   fonti_ok <- fonti[sapply(fonti, function(f) isTRUE(f$successo))]
   if (length(fonti_ok) < 3) {

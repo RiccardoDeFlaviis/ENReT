@@ -1,5 +1,5 @@
 # ==============================================================================
-# EASY NON-LINEAR REGRESSION TOOL v1.0.0 - MAIN
+# EASY NON-LINEAR REGRESSION TOOL v1.0.1 - MAIN
 # ==============================================================================
 
 library(shiny)
@@ -19,7 +19,7 @@ library(readxl)
 
 
 # ==============================================================================
-# EASY NON-LINEAR REGRESSION TOOL v1.0.0 - GLOBAL
+# EASY NON-LINEAR REGRESSION TOOL v1.0.1 - GLOBAL
 # ==============================================================================
 # This file is executed by Shiny BEFORE loading the R/ folder (which contains
 # ui.R and server.R). All library() calls and any definition that ui.R/server.R
@@ -206,7 +206,8 @@ MODEL_REGISTRY <- list(
     # which is why the ratio Nmax/N0 becomes exp(Nmax - N0) - numerically
     # verified to give results identical to the version with raw data.
     formula = "N0 + MU*(x + (1/MU)*log(exp(-MU*x) + exp(-h0) - exp(-MU*x-h0))) - log(1 + (exp(MU*(x + (1/MU)*log(exp(-MU*x) + exp(-h0) - exp(-MU*x-h0))))-1)/exp(Nmax-N0))",
-    display = "Active function: y = N0 + MU*A(x) - Ln(1 + (exp(MU*A(x))-1)/exp(Nmax-N0)), with A(x) = x + (1/MU)*Ln(exp(-MU*x) + exp(-h0) - exp(-MU*x-h0))   [N0 and Nmax are in Log scale]",
+    display = "Active function: y = N0 + MU*A(x) - Ln(1 + (exp(MU*A(x))-1)/exp(Nmax-N0)), with A(x) = x + (1/MU)*Ln(exp(-MU*x) + exp(-h0) - exp(-MU*x-h0))   [N0 and Nmax: natural log of the counts, ln]",
+    nota = "This model is written for the natural logarithm of the counts, ln(CFU), as recommended by ComBase: with log10 counts the lag and the maximum rate are biased (by about 17-21% on the ComBase curves). For log10 data, multiply the counts by ln 10 = 2.302585 before fitting (then divide N0, Nmax and MU by 2.302585; the lag is h0/MU), or enter the log10 form of the model as a custom formula (statistical document, section 4.4).",
     # Guesses with limits: MU>0 and h0>=0 are not just convenient but
     # mathematically NECESSARY - verified on 10000 random combinations
     # that with these constraints the expression inside the logarithm always stays
@@ -221,6 +222,7 @@ MODEL_REGISTRY <- list(
     group = "Advanced Growth Models", categoria = "Microbial Growth", label = "Reparameterized Baranyi",
     formula = "N0 + A + log((-1 + exp(MU * L) + exp(MU * x)) / (-1 + exp(MU * x) + exp(MU * L + A)))",
     display = "Active function: y = N0 + A + log((-1 + exp(MU * L) + exp(MU * x)) / (-1 + exp(MU * x) + exp(MU * L + A)))",
+    nota = "This model is written for the natural logarithm of the counts, ln(CFU), as recommended by ComBase: with log10 counts the lag and the maximum rate are biased (by about 17-21% on the ComBase curves). For log10 data, multiply the counts by ln 10 = 2.302585 before fitting (then divide N0, A and MU by 2.302585; the lag L does not change), or enter the log10 form of the model as a custom formula (statistical document, section 4.4).",
     guess = "N0=1, A=7[0.001,], MU=0.8[0,], L=1.5[0,]",
     simboli = c(N0 = "N[0]", MU = "mu[max]", L = "lambda")
   ),
@@ -1746,6 +1748,16 @@ ui <- fluidPage(
         white-space: normal !important;
         width: 100% !important;
       }
+      /* Exception for the band controls under the main plot: containers and
+         labels keep the width of their text, so that the two checkboxes stay
+         side by side. The two rules above give every checkbox container and
+         label the full width; these selectors are more specific than them. */
+      .comandi-bande div.shiny-input-container:has(> .checkbox),
+      .comandi-bande .checkbox label {
+        width: max-content !important;
+        max-width: 100% !important;
+      }
+      .comandi-bande div.shiny-input-container:has(> .checkbox) { margin-bottom: 0 !important; }
       .checkbox label input, .radio label input, .form-check-input {
         flex-shrink: 0 !important;
         margin-right: 8px !important;
@@ -2112,9 +2124,10 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
           tags$img(src = "data:image/png;base64,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", style = "height: 55px; width: auto;", alt = "ENReT logo"),
           tags$h4(style = "margin: 0; font-weight: bold; color: #2c3e50;",
                   "Easy Non-Linear Regression Tool ",
-                  tags$span(style = "font-size: 13px; color: #95a5a6; font-weight: normal;", "v1.0.0"),
+                  tags$span(style = "font-size: 13px; color: #95a5a6; font-weight: normal;", "v1.0.1"),
                   tags$span(style = "color: #18bc9c; font-style: italic; margin-left: 6px;", "for food technologists"))),
-      tags$div(style = "font-size: 12px; color: black; text-align: right;",
+      tags$div(style = "font-size: 12px; color: black; text-align: right; display: flex; align-items: baseline; gap: 14px;",
+               tags$a(href = "mailto:enret.app@gmail.com", style = "font-size: 14px; font-style: italic; color: #7f8c8d; text-decoration: none;", "enret.app@gmail.com"),
                tags$strong(style = "font-size: 18px;", "Riccardo De Flaviis, PhD"))
   ),
   
@@ -2131,7 +2144,10 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
       
       accordion(
         id = "sidebar_accordion",
-        open = "sec1",
+        # All sections closed at start, so that the user sees the full list of
+        # sections at a glance (the first entry into Batch and Simulator still
+        # opens Model Definition, see server.R).
+        open = FALSE,
         multiple = TRUE,
         
         accordion_panel(
@@ -2367,7 +2383,6 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
           selectInput("tipo_loss", "Select Loss Function:",
                       choices = c("Standard MSE (Least Squares)" = "mse",
                                   "MAE (Absolute Error - Robust)" = "mae",
-                                  "Huber Loss (Robust Smooth)" = "huber",
                                   "Log10Cosh Loss (Log-Hyperbolic)" = "log10cosh",
                                   "RMSLE (Root Mean Squared Log Error)" = "rmsle")),
           conditionalPanel(condition = "input.tipo_loss != 'mse'",
@@ -2399,6 +2414,11 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
                                   "Simplex (Nelder-Mead)" = "Nelder-Mead", 
                                   "Quasi-Newton (BFGS)" = "BFGS",
                                   "Bounded Quasi-Newton (L-BFGS-B)" = "L-BFGS-B")),
+          conditionalPanel(
+            condition = "input.tipo_loss == 'mae' && (input.algoritmo == 'BFGS' || input.algoritmo == 'L-BFGS-B')",
+            p(style = "color:#e67e22; font-size:12px; margin-top:-8px; margin-bottom:10px;",
+              tags$em("The MAE loss is not differentiable: BFGS and L-BFGS-B, which use derivatives, may stop far from the minimum. Nelder-Mead is recommended with MAE."))
+          ),
           
           selectInput("metodo_errore", "Parameter Error Method:", 
                       choices = c("Linear Approximation (Jacobian)" = "lineare", "Monte Carlo (Bootstrap)" = "monte_carlo")),
@@ -2406,7 +2426,7 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
           conditionalPanel(
             condition = "input.metodo_errore == 'lineare' && input.tipo_loss != 'mse'",
             p(style = "color:#e67e22; font-size:12px; margin-top:-8px; margin-bottom:10px;",
-              tags$em("Warning: the Jacobian-based error approximation is rigorously valid only for MSE loss. For MAE, Huber, Log10Cosh or RMSLE, Monte Carlo (Bootstrap) is recommended."))
+              tags$em("Warning: the Jacobian-based error approximation is rigorously valid only for MSE loss. For MAE, Log10Cosh or RMSLE, Monte Carlo (Bootstrap) is recommended."))
           ),
           
           conditionalPanel(
@@ -2436,16 +2456,6 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
           p(style = "font-size: 11px; color: #7f8c8d; margin-top: -10px;", 
             "Note: This dynamically adjusts both Linear (Z-score) and Monte Carlo (empirical quantiles) bounds."),
           
-          checkboxInput("mostra_ci", "Show Confidence Intervals", value = TRUE),
-          # Sub-option of the confidence band: visible only with the band
-          # active and the linear method (with Monte Carlo it has no effect).
-          conditionalPanel(condition = "input.mostra_ci && input.metodo_errore != 'monte_carlo'",
-            div(style = "margin-left: 20px;",
-              checkboxInput("banda_simultanea", "Simultaneous confidence band (Bates & Watts, 1988)", value = FALSE),
-              conditionalPanel(condition = "input.banda_simultanea",
-                p(style = "font-size: 11px; color: #7f8c8d; margin-top: -8px;",
-                  "The band holds for the whole curve at once (1\u2212\u03b1 approximate inference band, Bates & Watts, 1988, chapter 2): the t multiplier of the pointwise band is replaced by \u221a(p\u00b7F(p, n\u2212p; \u03b1)), which makes it wider. The prediction band remains pointwise.")))),
-          checkboxInput("mostra_pi", "Show Prediction Intervals", value = TRUE),
           hr(),
           tags$strong(style = "font-size: 13px;", "Advanced Settings:"),
           p(style = "font-size: 11px; color: #7f8c8d; margin-bottom: 8px;", "Change these only if needed: they can strongly affect both the results and the computation time."),
@@ -2519,7 +2529,7 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
                 tags$li("A library of 62 built-in models across 9 categories (microbial growth, microbial inactivation and Weibull models, reaction and enzyme kinetics, mass transfer, rheology and texture, water activity and sorption isotherms, statistical distributions), plus 42 models for the reference datasets (26 NIST StRD, 15 Bates & Watts and 1 Carroll & Ruppert) and support for fully custom formulas."),
                 tags$li("Flexible data input: direct entry, CSV/Excel upload (single-sample and multi-sample formats), synthetic data generation, or 67 built-in reference datasets (26 from ComBase, 26 certified NIST StRD nonlinear regression datasets, 14 from Bates & Watts, Nonlinear Regression Analysis and Its Applications, and 1 from Carroll & Ruppert, Transformation and Weighting in Regression, for weighted regression), plus 2 real example datasets for Batch Elaboration (Nisha et al., 2004, 2005)."),
                 tags$li("Multiple optimization algorithms (Levenberg-Marquardt with analytical derivatives, BFGS, L-BFGS-B, Nelder-Mead), loss functions, weighted least squares (weights 1/\u0177^\u03b6, with \u03b6 fixed or estimated from the replicates, in Single Fit and Batch Elaboration), and error estimation methods: classic standard errors from the linear approximation, Monte Carlo intervals (residual bootstrap or Gaussian noise), and profile-likelihood intervals."),
-tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statistical Reference Datasets"), " for nonlinear regression: with Levenberg-Marquardt, 48 of 52 runs reproduce the certified parameters, standard errors and residual sum of squares to at least 4 significant digits (the remaining four are explained by a typographical error in a NIST certificate and by the limits of double-precision arithmetic)."),
+tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statistical Reference Datasets"), " for nonlinear regression: with Levenberg-Marquardt, 50 of 52 runs reproduce the certified parameters, standard errors and residual sum of squares to at least 4 significant digits (the remaining two, both on the Lanczos1 dataset, are explained by the limits of double-precision arithmetic: its certified residual sum of squares is about 1.4\u00b710\u207b\u00b2\u2075)."),
                 tags$li("An ", tags$strong("Initial Guess Simulator"), " tab to visually adjust and animate initial guesses before running the main optimization \u2014 available above to help you find good starting values."),
                 tags$li("A ", tags$strong("Profile Likelihood"), " section with exact profile confidence intervals, t-plots and profile traces for every parameter, and a ", tags$strong("Loss Surface Explorer"), " with 2D/3D grid search and rigorous confidence regions."),
                 tags$li("A ", tags$strong("Batch Elaboration"), " tab for fitting many samples at once, with parameter and shelf-life comparison plots, significance testing, and post-hoc analysis."),
@@ -2528,6 +2538,12 @@ tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statis
                 tags$li("Extensive plot customization (colors, fonts, ranges, legends) for every graph in the app, plus export to Excel, CSV, and downloadable plots (JPEG/PDF), combined multi-panel images, or full ZIP archives."),
                 tags$li("An Operator Configuration panel to save and reload your preferred display and computation settings.")
               ),
+              tags$strong("How to cite: "), "please cite the article that describes ENReT: De Flaviis, R., & Sacchetti, G. (2026). ENReT: An open-source R-based tool for non-linear modelling specifically implemented for Food Science and Technology applications [Preprint]. Research Square. ",
+              tags$a(href = "https://doi.org/10.21203/rs.3.rs-11577802/v1", target = "_blank", "https://doi.org/10.21203/rs.3.rs-11577802/v1"),
+              ". To indicate the software, please also cite: De Flaviis, R. (2026). ENReT: Easy Non-linear Regression Tool [Computer software]. Zenodo. ",
+              tags$a(href = "https://doi.org/10.5281/zenodo.23839618", target = "_blank", "https://doi.org/10.5281/zenodo.23839618"),
+              " (the DOI of each version is listed on that page).",
+              tags$br(), tags$br(),
               "For any suggestions or questions, please contact me: enret.app@gmail.com"
             )
         )
@@ -2565,8 +2581,25 @@ tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statis
                  ),
                  plotOutput("grafico_fit", height = "380px"),
                  div(style = "margin-top: 8px;", downloadButton("scarica_grafico_fit", "Download Plot", class = "btn-outline-secondary btn-sm"), actionButton("btn_estetica_fit", "🎨", class = "btn-outline-secondary btn-sm", title = "Customize this plot")),
+                 # Confidence and prediction bands of this plot: controls placed next to
+                 # the plot they act on (previously in the sidebar), as for the
+                 # Arrhenius plot of Shelf-Life, and shown only after the first fit
+                 # (input.esegui > 0), then always. The confidence level stays in the
+                 # sidebar, because it also applies to the parameter intervals.
+                 conditionalPanel(condition = "input.esegui > 0", class = "comandi-bande",
+                   div(style = "display: flex; flex-wrap: wrap; gap: 0 28px; align-items: center; margin-top: 8px;",
+                       checkboxInput("mostra_ci", "Show Confidence Intervals", value = TRUE, width = "auto"),
+                       checkboxInput("mostra_pi", "Show Prediction Intervals", value = TRUE, width = "auto")),
+                   # Sub-option of the confidence band: visible only with the band
+                   # active and the linear method (with Monte Carlo it has no effect).
+                   conditionalPanel(condition = "input.mostra_ci && input.metodo_errore != 'monte_carlo'",
+                     div(style = "margin-left: 20px; margin-top: 2px;",
+                       checkboxInput("banda_simultanea", "Simultaneous confidence band (Bates & Watts, 1988)", value = FALSE, width = "auto"),
+                       conditionalPanel(condition = "input.banda_simultanea",
+                         div(style = "max-width: 70%;", p(style = "font-size: 11px; color: #7f8c8d; margin-top: -6px;",
+                  "The band holds for the whole curve at once (1\u2212\u03b1 approximate inference band, Bates & Watts, 1988, chapter 2): the t multiplier of the pointwise band is replaced by \u221a(p\u00b7F(p, n\u2212p; \u03b1)), which makes it wider. The prediction band remains pointwise.")))))),
                  
-                 div(style = "background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px; margin-top: 15px; margin-bottom: 15px; max-width: 50%;",
+                 div(style = "background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px; margin-top: 15px; margin-bottom: 15px;",
                      tags$h5(style = "margin-top: 0; color: #2c3e50;", icon("file-export"), " Export Data Tables and Figures"),
                      p(style = "font-size: 13px; color: #7f8c8d;", 
                        "CSV/Excel: Model Info, Parameter Estimates (with CI), Fixed Parameters, Goodness-of-Fit Diagnostics, Predictions & Residuals, 1000-Point Dense Curve, Monte Carlo Bootstrap Sets, Normality Diagnostics, Correlation Matrix, Sensitivity Analysis, and Loss Surface Explorer results (whichever of these are currently available). ZIP: every plot shown in this tab, as individual image files."),
@@ -2930,7 +2963,7 @@ tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statis
                      uiOutput("mc_sl_y_critico_ui"),
                      numericInput("mc_sl_x_min", "X Search Range Min:", value = 0.01),
                      uiOutput("mc_sl_x_max_ui"),
-                     selectInput("mc_sl_tipo_intervallo", "Uncertainty Type (Linear method fits):",
+                     selectInput("mc_sl_tipo_intervallo", "Uncertainty Type:",
                                 choices = c("New Observation (incl. residual var.)" = "predizione",
                                             "Mean Response Only" = "media"))
                    ),
@@ -3210,7 +3243,7 @@ tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statis
                      uiOutput("sl_y_critico_ui"),
                      numericInput("sl_x_min", "X Search Range Min:", value = 0.01),
                      uiOutput("sl_x_max_ui"),
-                     selectInput("sl_tipo_intervallo", "Uncertainty Type (Linear method samples):",
+                     selectInput("sl_tipo_intervallo", "Uncertainty Type:",
                                 choices = c("New Observation (incl. residual var.)" = "predizione",
                                             "Mean Response Only" = "media"))
                    ),
@@ -3253,6 +3286,16 @@ tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statis
         ),
         tabPanel(title = "References and R Packages", value = "tab_ref",
                  br(),
+                 tags$h4("How to Cite ENReT"),
+                 tags$p(style = "font-size: 14px; margin-bottom: 4px;", "If you use ENReT, please cite the article that describes it (preprint, not yet peer reviewed):"),
+                 tags$ul(style = "line-height: 1.8; font-size: 14px;",
+                         tags$li("De Flaviis, R., & Sacchetti, G. (2026). ENReT: An open-source R-based tool for non-linear modelling specifically implemented for Food Science and Technology applications [Preprint]. Research Square. ",
+                                 tags$a(href = "https://doi.org/10.21203/rs.3.rs-11577802/v1", target = "_blank", "https://doi.org/10.21203/rs.3.rs-11577802/v1"))),
+                 tags$p(style = "font-size: 14px; margin-bottom: 4px;", "To indicate the software, please also cite it (the DOI below represents all versions; the DOI of each version is listed on its Zenodo page):"),
+                 tags$ul(style = "line-height: 1.8; font-size: 14px;",
+                         tags$li("De Flaviis, R. (2026). ENReT: Easy Non-linear Regression Tool [Computer software]. Zenodo. ",
+                                 tags$a(href = "https://doi.org/10.5281/zenodo.23839618", target = "_blank", "https://doi.org/10.5281/zenodo.23839618"))),
+                 hr(),
                  tags$h4("Scientific References"),
                  tags$ul(style = "line-height: 1.8; font-size: 14px;",
                          tags$li("Barbosa-Cánovas, G. V., Fontana Jr, A. J., Schmidt, S. J., & Labuza, T. P. (2020). Water activity in foods: fundamentals and applications. John Wiley & Sons."),
@@ -3508,8 +3551,10 @@ server <- function(input, output, session) {
                    column(4, selectInput("ln_lty_fit", "Fit Line Type:", choices = c("Solid" = "1", "Dashed" = "2", "Dotted" = "3", "Dot-dash" = "4"), selected = if(is.null(input$ln_lty_fit)) "1" else input$ln_lty_fit))
                  ),
                  fluidRow(
-                   column(4, sliderInput("ci_alpha_fit", "Interval Opacity:", min = 0.05, max = 0.9, value = if(is.null(input$ci_alpha_fit)) 0.3 else input$ci_alpha_fit, step = 0.05)),
-                   column(4, sliderInput("fnt_cex_fit", "Text & Axis Size:", min = 0.7, max = 2.0, value = if(is.null(input$fnt_cex_fit)) 1.0 else input$fnt_cex_fit, step = 0.1))
+                   column(3, sliderInput("ci_alpha_fit", "Interval Opacity:", min = 0.05, max = 0.9, value = if(is.null(input$ci_alpha_fit)) 0.3 else input$ci_alpha_fit, step = 0.05)),
+                   column(3, sliderInput("fnt_cex_fit", "Text & Axis Size:", min = 0.7, max = 2.0, value = if(is.null(input$fnt_cex_fit)) 1.0 else input$fnt_cex_fit, step = 0.1)),
+                   column(3, selectInput("ci_lty_fit", "Confidence Band Line Type:", choices = c("Dotted" = "3", "Dashed" = "2", "Solid" = "1", "Dot-dash" = "4"), selected = if(is.null(input$ci_lty_fit)) "3" else input$ci_lty_fit)),
+                   column(3, selectInput("pi_lty_fit", "Prediction Band Line Type:", choices = c("Dot-dash" = "4", "Dashed" = "2", "Solid" = "1", "Dotted" = "3"), selected = if(is.null(input$pi_lty_fit)) "4" else input$pi_lty_fit))
                  ),
                  fluidRow(
                    column(4, sliderInput("inv_cex_legenda", "Legend Text Size (Inverse Prediction's \"Predicted X\" label):", min = 0.5, max = 1.5, value = if(is.null(input$inv_cex_legenda)) 0.9 else input$inv_cex_legenda, step = 0.05)),
@@ -4751,6 +4796,8 @@ server <- function(input, output, session) {
     updateSelectInput(session, "pt_pch_fit", selected = "16")
     updateSelectInput(session, "ln_lty_fit", selected = "1")
     updateSliderInput(session, "ci_alpha_fit", value = 0.3)
+    updateSelectInput(session, "ci_lty_fit", selected = "3")
+    updateSelectInput(session, "pi_lty_fit", selected = "4")
     updateSliderInput(session, "fnt_cex_fit", value = 1.0)
     updateSliderInput(session, "inv_cex_legenda", value = 0.9)
     # Simulator Plot
@@ -5058,7 +5105,7 @@ server <- function(input, output, session) {
     messaggio <- if (v < l$minimo || v > l$massimo) {
       sprintf("Outside the accepted range for this algorithm: 10^%d will be used.", esponente_tolleranza(v, alg))
     } else if (v > l$predefinito) {
-      "Looser than the default: the fit may stop before the minimum, giving inaccurate estimates and standard errors without any obvious sign (NIST validation with Levenberg-Marquardt: 48 of 52 runs with at least 4 correct digits at the default 10^-12, 41 at 10^-8, 30 at 10^-6, 20 at 10^-4, and no fit reported as not converged)."
+      "Looser than the default: the fit may stop before the minimum, giving inaccurate estimates and standard errors without any obvious sign (NIST validation with Levenberg-Marquardt: 50 of 52 runs with at least 4 correct digits at the default 10^-12, 43 at 10^-8, 32 at 10^-6, 20 at 10^-4, and no fit reported as not converged)."
     } else if (v < l$predefinito) {
       "Tighter than the default: longer computation times (especially with Monte Carlo and Batch Elaboration) and more fits reported as not converged if Max Iterations is too low."
     } else return(NULL)
@@ -5068,9 +5115,15 @@ server <- function(input, output, session) {
   output$visualizza_formula_matematica <- renderUI({
     testo_html <- abbellisci_formula_html(input$tipo_modello)
     
-    div(style = "background-color: #f0faf8; border-left: 4px solid #18bc9c; border-radius: 4px; padding: 10px 14px; margin-top: -5px; margin-bottom: 10px;",
-        tags$em(style = "color: #148f76; font-size: 14.5px; line-height: 1.6; font-family: 'Cambria Math', Cambria, Georgia, serif; word-wrap: break-word; display: block; font-style: italic;",
-                HTML(testo_html)))
+    # Optional note of the model in the registry (field "nota"), shown under the
+    # formula: e.g. the scale of the counts required by the Baranyi models.
+    nota_modello <- MODEL_REGISTRY[[input$tipo_modello]]$nota
+    tagList(
+      div(style = "background-color: #f0faf8; border-left: 4px solid #18bc9c; border-radius: 4px; padding: 10px 14px; margin-top: -5px; margin-bottom: 10px;",
+          tags$em(style = "color: #148f76; font-size: 14.5px; line-height: 1.6; font-family: 'Cambria Math', Cambria, Georgia, serif; word-wrap: break-word; display: block; font-style: italic;",
+                  HTML(testo_html))),
+      if (!is.null(nota_modello)) div(style = "font-size: 11.5px; color: #d35400; line-height: 1.4; margin-top: -4px; margin-bottom: 10px;", "\u26a0\ufe0f ", nota_modello)
+    )
   })
   
   # Removes the limits syntax "[min,max]" from a guess string,
@@ -5557,7 +5610,7 @@ server <- function(input, output, session) {
   # Ea~1e4), a small fixed step (e.g. 1e-5) can fall below numerical
   # precision for the large parameters, giving inaccurate derivatives.
   passo_derivata <- function(valore) {
-    1e-6 * max(abs(valore), 1e-8)
+    1e-6 * scala_passo(valore)
   }
   
   # Interprets a label using R's plotmath syntax (Greek letters, superscripts,
@@ -6021,9 +6074,10 @@ server <- function(input, output, session) {
   }, ignoreInit = FALSE)
   
   # Only the very first time Batch Elaboration is entered (never again
-  # afterwards, even if this tab is revisited later), moves the focus
-  # from section 1 (Data Input for Single Fit, irrelevant here) to
-  # section 4 (Model Definition, the first actual step for Batch) -
+  # afterwards, even if this tab is revisited later), opens section 4
+  # (Model Definition, the first actual step for Batch) and closes section 1
+  # (Data Input for Single Fit, irrelevant here) if the user had opened it -
+  # the sidebar starts with all sections closed -
   # but only if Model Definition is still closed: if the user has already
   # opened it on their own initiative (perhaps together with something else), we touch
   # nothing so as not to undo an arrangement already chosen manually.
@@ -6238,7 +6292,7 @@ server <- function(input, output, session) {
     "pt_col_fit", "pt_col_pairs", "pt_col_qq", "pt_col_res", "pt_col_sim", "pt_pch_fit", "pt_pch_qq",
     "pt_pch_res", "pt_pch_sim", "sl_col_banda", "sl_col_curva", "sl_col_punti", "vln_col_dist", "formato_esportazione", "comp_modo_layout", "comp_riempimento", "comp_stile_lettere", "comp_pos_lettere", "batch_col_punti", "confronto_col_punti",
     "mc_sl_col_banda", "mc_sl_col_curva", "mc_sl_col_punti", "confronto_palette",
-    "ln_lty_fit", "ln_lty_res", "ln_lty_qq", "vln_lty_dist", "sens_palette", "pch_punti_grid_3d",
+    "ci_lty_fit", "pi_lty_fit", "ln_lty_fit", "ln_lty_res", "ln_lty_qq", "vln_lty_dist", "sens_palette", "pch_punti_grid_3d",
     "sl_pch_punti", "mc_sl_pch_punti", "confronto_pch_punti", "confronto_lty_curve",
     "batch_palette", "batch_pch_punti", "batch_lty_linee", "col_bordo_boxplot_confronto", "tipo_grafico_boxplot_confronto",
     "batch_col_ist_par", "batch_col_bordo_ist_par", "batch_col_box_par", "batch_col_bordo_box_par", "batch_tipo_grafico_box_par",
@@ -6370,7 +6424,17 @@ server <- function(input, output, session) {
     # cause errors on the missing fields.
     if (!is.null(configurazione$tipo_modello)) updateSelectInput(session, "tipo_modello", selected = configurazione$tipo_modello)
     if (!is.null(configurazione$formula_custom)) updateTextInput(session, "formula_custom", value = configurazione$formula_custom)
-    if (!is.null(configurazione$tipo_loss)) updateSelectInput(session, "tipo_loss", selected = configurazione$tipo_loss)
+    if (!is.null(configurazione$tipo_loss)) {
+      loss_salvata <- configurazione$tipo_loss
+      # The Huber loss was removed in version 1.0.1 (the threshold was recomputed from the
+      # residuals at every evaluation, so the minimized function was not the Huber loss of
+      # the standard estimator): configurations saved with it switch to least squares.
+      if (identical(loss_salvata, "huber")) {
+        loss_salvata <- "mse"
+        showNotification("This configuration uses the Huber loss, which is no longer available: the least-squares (MSE) loss was selected instead.", type = "warning", duration = 12)
+      }
+      updateSelectInput(session, "tipo_loss", selected = loss_salvata)
+    }
     if (!is.null(configurazione$ponderazione)) updateSelectInput(session, "ponderazione", selected = configurazione$ponderazione)
     if (!is.null(configurazione$ponderazione_zeta)) updateNumericInput(session, "ponderazione_zeta", value = configurazione$ponderazione_zeta)
     if (!is.null(configurazione$batch_zeta_modo)) updateRadioButtons(session, "batch_zeta_modo", selected = configurazione$batch_zeta_modo)
@@ -6823,6 +6887,11 @@ elaborazione <- eventReactive(input$esegui, {
   # iterations, would risk making the computation impractically slow.
   maxiter_scelto <- min(max(maxiter_scelto, 50), 2000)
   algoritmo <- algoritmo_effettivo(input$algoritmo, input$tipo_loss)
+  # MAE is not differentiable: the gradient-based BFGS and L-BFGS-B can stop far from
+  # the minimum (16-87% higher loss in the engine review) or fail (L-BFGS-B, code 52);
+  # Nelder-Mead reaches it. Shown before the fit, so that it appears also if the fit fails.
+  if (input$tipo_loss == "mae" && algoritmo %in% c("BFGS", "L-BFGS-B"))
+    showNotification("The MAE loss is not differentiable: BFGS and L-BFGS-B, which use derivatives, may stop far from the minimum. Nelder-Mead is recommended with MAE.", type = "warning", duration = 12)
   esponente_tol <- esponente_tolleranza(input$esponente_tolleranza, algoritmo)
   tolleranza <- 10^esponente_tol
   accetta_non_conv <- isTRUE(input$accetta_non_convergenti)
@@ -6872,12 +6941,6 @@ elaborazione <- eventReactive(input$esegui, {
     res_loss <- switch(input$tipo_loss,
                        "mse" = if (is.null(pesi_radice)) sum(errori^2, na.rm = TRUE) else sum((pesi_radice * errori)^2, na.rm = TRUE),
                        "mae" = sum(abs(errori), na.rm = TRUE),
-                       "huber" = {
-                         delta <- 1.345 * mad(errori, na.rm = TRUE) 
-                         if(is.na(delta) || delta == 0) delta <- 1.0
-                         condizione <- abs(errori) <= delta
-                         sum(ifelse(condizione, 0.5 * (errori^2), delta * (abs(errori) - 0.5 * delta)), na.rm = TRUE)
-                       },
                        "log10cosh" = {
                          log_cosh <- ifelse(abs(errori) < 20, log(cosh(errori)), abs(errori) - log(2))
                          sum(log_cosh / log(10), na.rm = TRUE)
@@ -6918,7 +6981,7 @@ elaborazione <- eventReactive(input$esegui, {
   convergenza_vera <- TRUE
   tryCatch({
     if (algoritmo == "LM" && input$tipo_loss == "mse") {
-      fit <- nls.lm(par = guesses, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = df$y,
+      fit <- nls_lm_vincoli(par = guesses, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = df$y,
                     lower = limiti_inferiori, upper = limiti_superiori,
                     control = controllo_lm(maxiter_scelto, length(guesses), tolleranza))
       parametri_ottimi <- fit$par
@@ -6988,7 +7051,7 @@ elaborazione <- eventReactive(input$esegui, {
   if (pond$attiva) {
     esegui_fit_pesato <- function(partenza) tryCatch({
       if (algoritmo == "LM") {
-        f <- nls.lm(par = partenza, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = df$y, lower = limiti_inferiori, upper = limiti_superiori,
+        f <- nls_lm_vincoli(par = partenza, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = df$y, lower = limiti_inferiori, upper = limiti_superiori,
                     control = controllo_lm(maxiter_scelto, length(partenza), tolleranza))
         list(par = f$par, iter = f$niter, conv = f$info %in% 1:4)
       } else if (algoritmo == "L-BFGS-B") {
@@ -7073,7 +7136,7 @@ elaborazione <- eventReactive(input$esegui, {
   covarianza_problematica <- FALSE
   # "Classic" standard errors (Linear method): valid ONLY for least
   # squares. The formula s^2 (J^T J)^-1 derives from the SSE loss; with MAE,
-  # Huber, log10cosh or RMSLE applying it (as was done before, on the Hessian
+  # log10cosh or RMSLE applying it (as was done before, on the Hessian
   # of the chosen loss) gave plausible but wrong numbers. With these losses
   # they are not computed: the Monte Carlo method is suggested, whose empirical
   # intervals are valid with any loss.
@@ -7115,6 +7178,10 @@ elaborazione <- eventReactive(input$esegui, {
   sigma_mc_usato <- NA
   n_boot_successo <- NA
   n_boot_totale <- NA
+  # Residuals resampled by the Monte Carlo method (leverage-corrected and centred,
+  # Davison & Hinkley, 1997), kept in the result so that Inverse Prediction and
+  # Shelf-Life add the same noise for a new observation as the prediction band.
+  residui_boot <- NULL
   if (input$metodo_errore == "monte_carlo") {
     n_sim <- if (is.null(input$n_boot) || is.na(input$n_boot) || input$n_boot <= 0) 100 else input$n_boot
     # Same server-side safety constraint: the number of Monte Carlo
@@ -7149,7 +7216,7 @@ elaborazione <- eventReactive(input$esegui, {
         y_f <- y_pred + rumore_campionato
         try({
           if (algoritmo == "LM" && input$tipo_loss == "mse") {
-            fit_boot <- nls.lm(par = parametri_ottimi, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = y_f,
+            fit_boot <- nls_lm_vincoli(par = parametri_ottimi, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = y_f,
                                lower = limiti_inferiori, upper = limiti_superiori,
                                control = controllo_lm(maxiter_scelto, length(parametri_ottimi), tolleranza))
             # Discards this iteration if it does not really converge, UNLESS
@@ -7236,6 +7303,20 @@ elaborazione <- eventReactive(input$esegui, {
                        type = "warning", duration = 12)
     }
   }
+  # ---- Parameters on a bound, and bounds ignored by the algorithm ----
+  su_limite <- if (algoritmo %in% ALGORITMI_CON_VINCOLI) parametri_su_limite(parametri_ottimi, limiti_inferiori, limiti_superiori) else character(0)
+  limiti_ignorati <- !(algoritmo %in% ALGORITMI_CON_VINCOLI) && limiti_presenti(limiti_inferiori, limiti_superiori)
+  if (length(su_limite) > 0)
+    showNotification(paste0("Parameter(s) on a bound: ", paste(su_limite, collapse = ", "), ". This is the best fit within the bounds, but the standard error and the confidence interval of ",
+                            if (length(su_limite) == 1) "this parameter" else "these parameters", " are not reliable (the uncertainty is one-sided). Consider fixing ",
+                            if (length(su_limite) == 1) "it" else "them", " at the bound value, removing the bound, or using a simpler model."), type = "warning", duration = 15)
+  # Warning only when ignoring the bounds changed the result (an estimate outside
+  # them): many registry models have default bounds, and a warning at every
+  # BFGS or Nelder-Mead fit would soon no longer be read.
+  fuori_limiti <- if (limiti_ignorati) parametri_fuori_limiti(parametri_ottimi, limiti_inferiori, limiti_superiori) else character(0)
+  if (length(fuori_limiti) > 0)
+    showNotification(paste0(algoritmo, " does not use parameter bounds: they were ignored, and the estimate of ", paste(fuori_limiti, collapse = ", "),
+                            " is outside them. Use Levenberg-Marquardt or L-BFGS-B to apply the bounds."), type = "warning", duration = 15)
   if (convergenza_vera && !covarianza_problematica) {
     showNotification("✓ Modeling Successful! Parameter estimation and model convergence completed successfully.", type = "message", duration = 4)
   } else if (convergenza_vera && covarianza_problematica) {
@@ -7259,6 +7340,8 @@ elaborazione <- eventReactive(input$esegui, {
        x_griglia=x_griglia_estesa, df_originale=df,
        tipo_rumore_mc=if(input$metodo_errore=="monte_carlo") input$tipo_rumore_mc else NA,
        sigma_mc=sigma_mc_usato, fissi=fissi, convergenza_vera=convergenza_vera,
+       residui_bootstrap=residui_boot,
+       parametri_su_limite=su_limite, limiti_ignorati=limiti_ignorati, parametri_fuori_limiti=fuori_limiti,
        n_boot_successo=n_boot_successo, n_boot_totale=n_boot_totale,
        tipo_modello_usato=input$tipo_modello, ponderazione=pond, pesi=pesi,
        ripartenze_nm = if (identical(algoritmo, "Nelder-Mead")) list(attive = ripartenze_nm, usate = ripartenze_usate) else NULL)
@@ -7496,6 +7579,30 @@ MASSIMO_ITERAZIONI_LM <- 1024
 controllo_lm <- function(maxiter, n_parametri, tolleranza = 1e-12) {
   iterazioni <- min(maxiter, MASSIMO_ITERAZIONI_LM)
   nls.lm.control(maxiter = iterazioni, maxfev = max(100000, iterazioni * (n_parametri + 1) * 10), ftol = tolleranza, ptol = tolleranza)
+}
+
+# ---- Levenberg-Marquardt with bounds ----
+# nls.lm() keeps the parameters within the bounds by moving them back onto the
+# bound; with the analytical Jacobian this projection is not reflected in the
+# derivatives, so when a parameter ends on a bound the other parameters can stop
+# at a non-optimal point while convergence is reported (Michaelis-Menten on the
+# Puromycin data with Vm <= 200: K = 0.05608 instead of 0.05280). With the
+# numerical Jacobian the bound is handled correctly. Therefore, only when a
+# parameter ends on a bound, the fit is resumed from that point with the
+# numerical Jacobian and the result with the lower sum of squares is kept; the
+# matrix J^T J returned for the covariance is recomputed with the analytical
+# Jacobian, as in the other fits. Without active bounds the result is exactly
+# that of nls.lm().
+nls_lm_vincoli <- function(par, fn, jac, lower, upper, control, ...) {
+  fit <- nls.lm(par = par, fn = fn, jac = jac, lower = lower, upper = upper, control = control, ...)
+  su_limite <- function(p, b) is.finite(b) & abs(p - b) <= 1e-8 * pmax(1, abs(b))
+  if (!any(su_limite(fit$par, lower) | su_limite(fit$par, upper))) return(fit)
+  fit2 <- tryCatch(nls.lm(par = fit$par, fn = fn, lower = lower, upper = upper, control = control, ...), error = function(e) NULL)
+  if (is.null(fit2) || !is.finite(fit2$deviance) || fit2$deviance >= fit$deviance) return(fit)
+  J <- tryCatch(jac(fit2$par, ...), error = function(e) NULL)
+  if (!is.null(J) && all(is.finite(J))) fit2$hessian <- crossprod(J)
+  fit2$niter <- fit$niter + fit2$niter
+  fit2
 }
 
 # ---- Residuals to be resampled in the residual bootstrap ----
@@ -7764,16 +7871,94 @@ crea_jacobiano_modello <- function(formula_stringa, nomi_liberi) {
 # relative to the magnitude of each parameter (cube root of the
 # machine precision), so it also works with very small
 # or very large parameters.
+# For a parameter equal to zero (|value| < 1e-8) the step uses a unit scale
+# (the usual "typical size" convention of numerical optimization): a step
+# proportional to the value would be about 1e-14, and the difference would be
+# dominated by rounding errors (e.g. a lag fixed on its bound L >= 0). When the
+# model cannot be evaluated on one side (e.g. a negative value of a parameter
+# on the bound zero), a one-sided difference is used.
+scala_passo <- function(valore) if (abs(valore) < 1e-8) 1 else abs(valore)
 jacobiano_numerico <- function(f, parametri) {
   passo_base <- .Machine$double.eps^(1/3)
   J <- sapply(seq_along(parametri), function(j) {
-    h <- passo_base * max(abs(parametri[j]), 1e-8)
+    h <- passo_base * scala_passo(parametri[j])
     p_piu <- parametri; p_meno <- parametri
     p_piu[j] <- parametri[j] + h; p_meno[j] <- parametri[j] - h
-    (f(p_piu) - f(p_meno)) / (2 * h)
+    f_piu <- tryCatch(f(p_piu), error = function(e) NA); f_meno <- tryCatch(f(p_meno), error = function(e) NA)
+    if (all(is.finite(f_piu)) && all(is.finite(f_meno))) return((f_piu - f_meno) / (2 * h))
+    f_0 <- f(parametri)
+    if (all(is.finite(f_piu))) (f_piu - f_0) / h else (f_0 - f_meno) / h
   })
   if (is.null(dim(J))) J <- matrix(J, ncol = length(parametri))
   colnames(J) <- names(parametri)
+  J
+}
+
+# ---- Parameters on a bound / outside the bounds ----
+# A parameter that ends on a bound has a one-sided uncertainty: its classic
+# standard error and confidence interval, computed as if it were free, are not
+# reliable (e.g. Michaelis-Menten with Vm <= 200: Vm = 200 with an interval
+# extending beyond 200). BFGS and Nelder-Mead do not use bounds at all.
+# These functions identify both cases, with the same tolerance as nls_lm_vincoli().
+ALGORITMI_CON_VINCOLI <- c("LM", "L-BFGS-B")
+parametri_su_limite <- function(parametri, lower, upper) {
+  n <- length(parametri); if (n == 0) return(character(0))
+  lower <- rep_len(if (is.null(lower)) -Inf else as.numeric(lower), n); upper <- rep_len(if (is.null(upper)) Inf else as.numeric(upper), n)
+  p <- as.numeric(parametri); su <- function(b) is.finite(b) & abs(p - b) <= 1e-8 * pmax(1, abs(b))
+  names(parametri)[su(lower) | su(upper)]
+}
+parametri_fuori_limiti <- function(parametri, lower, upper) {
+  n <- length(parametri); if (n == 0) return(character(0))
+  lower <- rep_len(if (is.null(lower)) -Inf else as.numeric(lower), n); upper <- rep_len(if (is.null(upper)) Inf else as.numeric(upper), n)
+  p <- as.numeric(parametri)
+  names(parametri)[(is.finite(lower) & p < lower - 1e-8 * pmax(1, abs(lower))) | (is.finite(upper) & p > upper + 1e-8 * pmax(1, abs(upper)))]
+}
+limiti_presenti <- function(lower, upper) any(is.finite(as.numeric(lower))) || any(is.finite(as.numeric(upper)))
+
+# ---- X at which a curve reaches a target value ----
+# Shared by Inverse Prediction and Shelf-Life (Batch and Model Comparison).
+# The search range is scanned on a grid to find every crossing of the target,
+# not only the two ends: with a non-monotone curve (e.g. with a maximum) the
+# ends can lie on the same side even when the target is reached twice. Each
+# solution is refined with uniroot(), with a tolerance relative to the size of
+# the range (Shelf-Life previously used the absolute default, about 1e-4). A
+# change of sign through a vertical asymptote is not a solution, so a root is
+# accepted only if the curve there is really close to the target. Returns the
+# solutions in increasing order and the range of the curve over the scan.
+trova_soluzioni_x <- function(obiettivo, x_min, x_max, n_scan = 200) {
+  x <- seq(x_min, x_max, length.out = n_scan)
+  y <- vapply(x, function(v) { r <- tryCatch(as.numeric(obiettivo(v))[1], error = function(e) NA_real_); if (length(r)) r else NA_real_ }, numeric(1))
+  ok <- is.finite(y)
+  risultato <- list(soluzioni = numeric(0), intervallo_obiettivo = if (any(ok)) range(y[ok]) else c(NA_real_, NA_real_))
+  if (sum(ok) < 2) return(risultato)
+  xv <- x[ok]; yv <- y[ok]
+  tolleranza <- 1e-10 * max(abs(x_min), abs(x_max), x_max - x_min)
+  scala_y <- max(1, diff(range(yv)))
+  soluzioni <- xv[yv == 0]
+  for (i in which(yv[-length(yv)] * yv[-1] < 0)) {
+    r <- tryCatch(uniroot(obiettivo, c(xv[i], xv[i + 1]), tol = tolleranza)$root, error = function(e) NA_real_)
+    if (is.finite(r)) { v <- tryCatch(obiettivo(r), error = function(e) NA_real_)
+      if (is.finite(v) && abs(v) <= 1e-6 * scala_y) soluzioni <- c(soluzioni, r) }
+  }
+  risultato$soluzioni <- sort(unique(soluzioni))
+  risultato
+}
+# Solution closest to a reference (e.g. the bootstrap solution matching the main one).
+soluzione_piu_vicina <- function(soluzioni, riferimento) if (length(soluzioni)) soluzioni[which.min(abs(soluzioni - riferimento))] else NA_real_
+
+# ---- Derivatives of the fitted curve with respect to the parameters ----
+# n x p matrix of df/dtheta at the points x, for the delta-method calculations
+# (confidence and prediction bands, sensitivity, exports, Inverse Prediction).
+# Analytical derivatives (crea_jacobiano_modello), the same used by the fit;
+# numerical ones (jacobiano_numerico) only if the formula cannot be
+# differentiated symbolically. Previously these calculations used their own
+# central differences with step 1e-6 * |value|: for a parameter equal to zero
+# the step was about 1e-14 and the bands became very wide and jagged.
+gradiente_parametri <- function(res, x) {
+  fissi <- if (is.null(res$fissi)) list() else res$fissi
+  J <- tryCatch(crea_jacobiano_modello(res$formula, names(res$parametri))(res$parametri, x, fissi), error = function(e) NULL)
+  if (is.null(J) || !all(is.finite(J))) J <- jacobiano_numerico(function(p) res$valuta(p, x), res$parametri)
+  if (is.null(dim(J))) J <- matrix(J, ncol = length(res$parametri))
   J
 }
 
@@ -8149,7 +8334,9 @@ output$tabella_parametri_stimati <- renderTable({
   # renderTable below - so the only "real" HTML that reaches the browser
   # is the one we build ourselves in a controlled way, not free
   # text from the user.
-  tab$Parameter <- sapply(tab$Parameter, function(n) simbolo_a_html(simbolo_visualizzazione(n)))
+  su_limite <- names(res$parametri) %in% res$parametri_su_limite
+  tab$Parameter <- paste0(sapply(tab$Parameter, function(n) simbolo_a_html(simbolo_visualizzazione(n))),
+                          ifelse(su_limite, " <span style='color:#e67e22;'>(on bound)</span>", ""))
   colnames(tab) <- gsub("_", " ", colnames(tab))
   tab
 }, striped = TRUE, hover = TRUE, bordered = TRUE, na = "N/A", sanitize.text.function = function(x) x)
@@ -8381,6 +8568,7 @@ prepara_dati_export <- function() {
   df_params <- data.frame(Parameter = names(res$parametri), Estimate = as.numeric(res$parametri), Std_Error = as.numeric(res$errori))
   df_params$CI_Parametric_Lower <- df_params$Estimate - (crit_val * df_params$Std_Error)
   df_params$CI_Parametric_Upper <- df_params$Estimate + (crit_val * df_params$Std_Error)
+  df_params$On_Bound <- ifelse(names(res$parametri) %in% res$parametri_su_limite, "Yes", "No")
   
   # With Monte Carlo, it also adds the EMPIRICAL interval (direct quantiles
   # of the bootstrap distribution), which unlike the parametric one
@@ -8459,11 +8647,9 @@ prepara_dati_export <- function() {
     n_par <- length(res$parametri)
     y_base <- res$valuta(res$parametri, x_dense)
     sens <- data.frame(X_Grid_Value = x_dense)
+    G <- gradiente_parametri(res, x_dense)
     for (j in seq_len(n_par)) {
-      h_j <- passo_derivata(res$parametri[j])
-      p_piu <- res$parametri; p_piu[j] <- p_piu[j] + h_j
-      p_meno <- res$parametri; p_meno[j] <- p_meno[j] - h_j
-      dydtheta <- (res$valuta(p_piu, x_dense) - res$valuta(p_meno, x_dense)) / (2 * h_j)
+      dydtheta <- G[, j]
       sens[[paste0("Sensitivity_", names(res$parametri)[j])]] <- ifelse(abs(y_base) > 1e-10, dydtheta * (res$parametri[j] / y_base), NA)
     }
     sens
@@ -8743,12 +8929,7 @@ calcola_bande_grafico <- function(res) {
   mc <- identical(input$metodo_errore, "monte_carlo")
   out <- list(x = x_seq, y = y_seq)
   se_curva <- function() {
-    G <- sapply(seq_along(res$parametri), function(j) {
-      h_j <- passo_derivata(res$parametri[j])
-      pp <- res$parametri; pp[j] <- pp[j] + h_j; pm <- res$parametri; pm[j] <- pm[j] - h_j
-      (res$valuta(pp, x_seq) - res$valuta(pm, x_seq)) / (2 * h_j)
-    })
-    if (is.null(dim(G))) G <- matrix(G, ncol = length(res$parametri))
+    G <- gradiente_parametri(res, x_seq)
     sqrt(rowSums((G %*% res$cov) * G))
   }
   lineare_ok <- !is.null(res$cov) && all(res$errori > 0, na.rm = TRUE)
@@ -8831,19 +9012,22 @@ disegna_grafico_fit <- function(df, res) {
     p_sup <- 1 - p_inf
     
     if (!is.null(bande$nota)) mtext(bande$nota, side = 3, line = 0.2, cex = 0.75 * fnt_cex, col = "#d35400")
+    # Line types of the bands (customizable; defaults: dotted / dot-dash, as before)
+    lty_ci <- as.numeric(if (is.null(input$ci_lty_fit)) "3" else input$ci_lty_fit)
+    lty_pi <- as.numeric(if (is.null(input$pi_lty_fit)) "4" else input$pi_lty_fit)
     if (!is.null(bande$pi_inf)) {
       colore_pi <- rgb(0.95, 0.76, 0.76, ci_alpha)
       polygon(c(x_seq, rev(x_seq)), c(bande$pi_sup, rev(bande$pi_inf)), col = colore_pi, border = NA)
-      lines(x_seq, bande$pi_sup, col = ln_col, lty = 4, lwd = 1.2)
-      lines(x_seq, bande$pi_inf, col = ln_col, lty = 4, lwd = 1.2)
+      lines(x_seq, bande$pi_sup, col = ln_col, lty = lty_pi, lwd = 1.2)
+      lines(x_seq, bande$pi_inf, col = ln_col, lty = lty_pi, lwd = 1.2)
     }
     if (!is.null(bande$ci_inf)) {
       if (identical(bande$ci_tipo, "monte_carlo")) {
         polygon(c(x_seq, rev(x_seq)), c(bande$ci_sup, rev(bande$ci_inf)), col = rgb(0.1, 0.7, 0.1, ci_alpha / 2), border = NA)
-        lines(x_seq, bande$ci_sup, col = "darkgreen", lty = 3); lines(x_seq, bande$ci_inf, col = "darkgreen", lty = 3)
+        lines(x_seq, bande$ci_sup, col = "darkgreen", lty = lty_ci); lines(x_seq, bande$ci_inf, col = "darkgreen", lty = lty_ci)
       } else {
         polygon(c(x_seq, rev(x_seq)), c(bande$ci_sup, rev(bande$ci_inf)), col = rgb(0.7, 0.7, 0.7, ci_alpha), border = NA)
-        lines(x_seq, bande$ci_sup, col = "gray50", lty = 3); lines(x_seq, bande$ci_inf, col = "gray50", lty = 3)
+        lines(x_seq, bande$ci_sup, col = "gray50", lty = lty_ci); lines(x_seq, bande$ci_inf, col = "gray50", lty = lty_ci)
       }
     }
     lines(x_seq[is.finite(y_seq)], y_seq[is.finite(y_seq)], col = ln_col, lwd = ln_lwd, lty = ln_lty)
@@ -9030,11 +9214,9 @@ disegna_grafico_sensibilita <- function(res) {
   y_base <- res$valuta(res$parametri, x_seq)
   
   sensibilita <- matrix(NA_real_, nrow = length(x_seq), ncol = n_par)
+  G <- gradiente_parametri(res, x_seq)
   for (j in seq_len(n_par)) {
-    h_j <- passo_derivata(res$parametri[j])
-    p_piu <- res$parametri; p_piu[j] <- p_piu[j] + h_j
-    p_meno <- res$parametri; p_meno[j] <- p_meno[j] - h_j
-    dydtheta <- (res$valuta(p_piu, x_seq) - res$valuta(p_meno, x_seq)) / (2 * h_j)
+    dydtheta <- G[, j]
     # Protection against division by y_base ~ 0 (points where the model passes through zero)
     sensibilita[, j] <- ifelse(abs(y_base) > 1e-10, dydtheta * (res$parametri[j] / y_base), NA)
   }
@@ -9796,6 +9978,9 @@ esegui_add_a_confronto <- function(silenzioso = FALSE) {
     x_dati = res$df_originale$x,
     y_dati = res$df_originale$y,
     residui = res$residui,
+    residui_bootstrap = res$residui_bootstrap,
+    tipo_rumore_mc = res$tipo_rumore_mc,
+    sigma_mc = res$sigma_mc,
     mat_boot = res$mat_boot_params,
     convergenza_vera = isTRUE(res$convergenza_vera),
     simboli_modello = as.list(simboli_parametri()),
@@ -10974,7 +11159,7 @@ observeEvent(input$mc_sl_esegui_analisi, {
   withProgress(message = "Finding shelf life for each fit...", value = 0, {
     for (i in seq_along(lista)) {
       s <- lista[[i]]
-      res_adattato <- list(parametri = s$parametri, mat_boot = s$mat_boot, cov = s$cov, rmse = s$rmse, df = s$df, ponderazione = s$ponderazione, pesi = s$pesi)
+      res_adattato <- list(parametri = s$parametri, mat_boot = s$mat_boot, cov = s$cov, rmse = s$rmse, df = s$df, ponderazione = s$ponderazione, pesi = s$pesi, residui_bootstrap = s$residui_bootstrap)
       fonti[[nomi[i]]] <- costruisci_fonte_sl(res_adattato, s$formula, y_critico, x_min, x_max, input$mc_sl_tipo_intervallo)
       incProgress(1 / length(lista))
     }
@@ -10983,6 +11168,11 @@ observeEvent(input$mc_sl_esegui_analisi, {
   falliti <- names(Filter(function(f) !isTRUE(f$successo), fonti))
   if (length(falliti) > 0) {
     showNotification(paste("Could not find a shelf life for:", paste(falliti, collapse = ", "), "- try widening the X Search Range."), type = "warning", duration = 10)
+  }
+  multiple <- names(Filter(function(f) isTRUE(f$successo) && isTRUE(f$n_soluzioni > 1), fonti))
+  if (length(multiple) > 0) {
+    showNotification(paste0("The critical value is reached more than once in the X search range for: ", paste(multiple, collapse = ", "),
+                            ". The shelf life refers to the first crossing (smallest X); narrow the X search range to select another one."), type = "warning", duration = 12)
   }
   fonti_ok <- fonti[sapply(fonti, function(f) isTRUE(f$successo))]
   if (length(fonti_ok) < 3) {
@@ -11441,8 +11631,19 @@ adatta_snapshot_a_res <- function(snapshot) {
     curve_boot_ricostruito <- t(apply(snapshot$mat_boot, 1, function(riga_par) {
       valuta_fn(riga_par, snapshot$x_griglia)
     }))
-    if (!is.null(snapshot$rmse) && is.finite(snapshot$rmse)) {
-      rumore_pred <- matrix(rnorm(length(curve_boot_ricostruito), mean = 0, sd = snapshot$rmse), nrow = nrow(curve_boot_ricostruito))
+    # Noise of a new observation generated as in the Single Fit: Gaussian with the sigma
+    # used there, or the resampled residuals of its Monte Carlo (kept with the saved
+    # fit). Fits saved by earlier versions, without this information: Gaussian with rmse.
+    n_rumore <- length(curve_boot_ricostruito)
+    valori_rumore <- if (identical(snapshot$tipo_rumore_mc, "gaussiano") && length(snapshot$sigma_mc) && is.finite(snapshot$sigma_mc)) {
+      rnorm(n_rumore, mean = 0, sd = snapshot$sigma_mc)
+    } else if (length(snapshot$residui_bootstrap)) {
+      sample(snapshot$residui_bootstrap, n_rumore, replace = TRUE)
+    } else if (!is.null(snapshot$rmse) && is.finite(snapshot$rmse)) {
+      rnorm(n_rumore, mean = 0, sd = snapshot$rmse)
+    } else NULL
+    if (!is.null(valori_rumore)) {
+      rumore_pred <- matrix(valori_rumore, nrow = nrow(curve_boot_ricostruito))
       # Weighted fit: noise brought back to the scale of each point of the curve.
       if (isTRUE(snapshot$ponderazione$attiva) && !is.null(snapshot$pesi))
         rumore_pred <- rumore_pred * sqrt(ifelse(curve_boot_ricostruito > 0, curve_boot_ricostruito^snapshot$ponderazione$zeta, NA_real_))
@@ -11462,6 +11663,7 @@ adatta_snapshot_a_res <- function(snapshot) {
     curve_boot = curve_boot_ricostruito,
     pred_boot = pred_boot_ricostruito,
     residui = residui_calcolati,
+    residui_bootstrap = snapshot$residui_bootstrap,
     cov = snapshot$cov,
     rmse = snapshot$rmse,
     ponderazione = snapshot$ponderazione,
@@ -11529,7 +11731,7 @@ output$sezione_risultato_inversa_ui <- renderUI({
     tags$h4("Result:"),
     verbatimTextOutput("risultato_inversa"),
     p(style = "font-size: 11px; color: #e67e22; line-height: 1.4;",
-      tags$strong("Note: "), "root-finding requires the model to be monotonic (single solution) within the search range. If the range contains more than one crossing of the target Y, only one root is returned."),
+      tags$strong("Note: "), "the search range is scanned for every crossing of the target Y. If there is more than one, the smallest X is returned and the others are listed in the result; narrow the search range to select another one."),
     br(),
     uiOutput("titolo_grafico_inversa"),
     p(style = "font-size: 13px; color: #7f8c8d;",
@@ -11559,36 +11761,27 @@ calcolo_inversa <- eventReactive(input$calcola_inversa, {
     return(list(successo = FALSE, messaggio = "Please enter a valid target Y value."))
   }
   
-  # ---- Search interval for uniroot ----
-  df_dati_orig <- res$df_originale
-  if (range_personalizzato_attivo(input$x_search_min_inversa, input$x_search_max_inversa)) {
-    intervallo_ricerca <- c(input$x_search_min_inversa, input$x_search_max_inversa)
-  } else {
-    intervallo_dati <- range(df_dati_orig$x, na.rm = TRUE)
-    ampiezza <- diff(intervallo_dati)
-    if (ampiezza == 0) ampiezza <- max(abs(intervallo_dati[1]), 1)
-    intervallo_ricerca <- intervallo_dati + c(-0.5, 0.5) * ampiezza
+  # ---- Search range: the X Search Range fields, pre-filled with the X range of
+  # the data whenever the dataset changes. If they are empty or not valid the
+  # calculation does not start (previously a range extended by 50% on each side
+  # was used, which could include meaningless values, e.g. negative times).
+  if (!range_personalizzato_attivo(input$x_search_min_inversa, input$x_search_max_inversa)) {
+    return(list(successo = FALSE, messaggio = "Please enter a valid X search range (Min smaller than Max). The fields are pre-filled with the X range of your data."))
   }
+  intervallo_ricerca <- c(input$x_search_min_inversa, input$x_search_max_inversa)
   
   funzione_obiettivo <- function(x) res$valuta(res$parametri, x) - y_target
-  
-  y_inf_check <- tryCatch(funzione_obiettivo(intervallo_ricerca[1]), error = function(e) NA)
-  y_sup_check <- tryCatch(funzione_obiettivo(intervallo_ricerca[2]), error = function(e) NA)
-  
-  if (any(is.na(c(y_inf_check, y_sup_check))) || !all(is.finite(c(y_inf_check, y_sup_check))) || sign(y_inf_check) == sign(y_sup_check)) {
+  ricerca <- trova_soluzioni_x(funzione_obiettivo, intervallo_ricerca[1], intervallo_ricerca[2])
+  if (length(ricerca$soluzioni) == 0) {
+    intervallo_curva <- ricerca$intervallo_obiettivo + y_target
     return(list(successo = FALSE, messaggio = paste0(
-      "No solution found for Y = ", round(y_target, 5), " within the search range [",
-      round(intervallo_ricerca[1], 4), ", ", round(intervallo_ricerca[2], 4),
-      "]. The model's predicted Y values at the two ends of this range are ",
-      round(y_inf_check + y_target, 5), " and ", round(y_sup_check + y_target, 5),
-      ". Try widening the X Search Range, or check that the target Y is actually reachable by this model in this region.")))
+      "The model does not reach Y = ", signif(y_target, 6), " within the X search range [", signif(intervallo_ricerca[1], 6), ", ", signif(intervallo_ricerca[2], 6), "]",
+      if (all(is.finite(intervallo_curva))) paste0(": in this range the predicted Y goes from ", signif(intervallo_curva[1], 6), " to ", signif(intervallo_curva[2], 6)) else "",
+      ". Check the target Y, or widen the search range (solutions outside the range of the data are extrapolations).")))
   }
-  
-  soluzione <- tryCatch(uniroot(funzione_obiettivo, interval = intervallo_ricerca, tol = 1e-10), error = function(e) NULL)
-  if (is.null(soluzione)) {
-    return(list(successo = FALSE, messaggio = "The root-finding algorithm failed to converge on a solution."))
-  }
-  x0 <- soluzione$root
+  # With more than one solution, the smallest X is returned and the others are reported.
+  x0 <- ricerca$soluzioni[1]
+  altre_soluzioni <- ricerca$soluzioni[-1]
   
   # ---- Error estimation on x0 ----
   z_val <- valore_critico(res$df)  # Student's t (df=n-p), converges to Z for large samples
@@ -11611,18 +11804,18 @@ calcolo_inversa <- eventReactive(input$calcola_inversa, {
       y_target_iter <- if (input$tipo_intervallo_inversa == "predizione") {
         # With weighted regression: weighted residual brought back to the scale of the
         # sought value (variance sigma^2 y_target^zeta); unchanged without weights.
-        y_target + sample(residui_diagnostici(res), 1) * sqrt(varianza_relativa(res, y_target))
+        # Same residuals as the prediction band (leverage-corrected, kept by the
+        # Monte Carlo of the fit); previously the raw residuals, which are smaller
+        # than the errors, giving a slightly too narrow interval.
+        y_target + sample(if (length(res$residui_bootstrap)) res$residui_bootstrap else residui_diagnostici(res), 1) * sqrt(varianza_relativa(res, y_target))
       } else {
         y_target
       }
       
+      # Solution of each bootstrap curve: the one closest to the main solution,
+      # so that all iterations refer to the same crossing of the target.
       obiettivo_boot <- function(x) res$valuta(p_boot, x) - y_target_iter
-      y_inf_b <- tryCatch(obiettivo_boot(intervallo_ricerca[1]), error = function(e) NA)
-      y_sup_b <- tryCatch(obiettivo_boot(intervallo_ricerca[2]), error = function(e) NA)
-      if (any(is.na(c(y_inf_b, y_sup_b))) || !all(is.finite(c(y_inf_b, y_sup_b))) || sign(y_inf_b) == sign(y_sup_b)) next
-      
-      sol_b <- tryCatch(uniroot(obiettivo_boot, interval = intervallo_ricerca, tol = 1e-8), error = function(e) NULL)
-      if (!is.null(sol_b)) x0_boot[i] <- sol_b$root
+      x0_boot[i] <- soluzione_piu_vicina(trova_soluzioni_x(obiettivo_boot, intervallo_ricerca[1], intervallo_ricerca[2])$soluzioni, x0)
     }
     
     x0_boot <- x0_boot[is.finite(x0_boot)]
@@ -11646,13 +11839,7 @@ calcolo_inversa <- eventReactive(input$calcola_inversa, {
       
       df_dx <- (res$valuta(res$parametri, x0 + h_x) - res$valuta(res$parametri, x0 - h_x)) / (2 * h_x)
       
-      gradiente_par <- numeric(length(res$parametri))
-      for (j in seq_along(res$parametri)) {
-        h_j <- passo_derivata(res$parametri[j])
-        p_piu <- res$parametri; p_piu[j] <- p_piu[j] + h_j
-        p_meno <- res$parametri; p_meno[j] <- p_meno[j] - h_j
-        gradiente_par[j] <- (res$valuta(p_piu, x0) - res$valuta(p_meno, x0)) / (2 * h_j)
-      }
+      gradiente_par <- as.numeric(gradiente_parametri(res, x0))
       
       var_param <- as.numeric(t(gradiente_par) %*% res$cov %*% gradiente_par)
       var_y <- if (input$tipo_intervallo_inversa == "predizione") res$rmse^2 * varianza_relativa(res, y_target) else 0
@@ -11671,7 +11858,7 @@ calcolo_inversa <- eventReactive(input$calcola_inversa, {
     }
   }
   
-  list(successo = TRUE, x0 = x0, y_target = y_target, errore_x = errore_x,
+  list(successo = TRUE, x0 = x0, altre_soluzioni = altre_soluzioni, y_target = y_target, errore_x = errore_x,
        ci_inf = ci_inf, ci_sup = ci_sup, metodo = metodo_errore_usato,
        intervallo_ricerca = intervallo_ricerca,
        x0_boot = if (exists("x0_boot", inherits = FALSE)) x0_boot else NULL)
@@ -11690,6 +11877,9 @@ output$risultato_inversa <- renderPrint({
   
   cat(sprintf("Target %s value: %.5f\n", input$label_y, risultato$y_target))
   cat(sprintf("Search Range Used: [%.5f, %.5f]\n\n", risultato$intervallo_ricerca[1], risultato$intervallo_ricerca[2]))
+  if (length(risultato$altre_soluzioni) > 0)
+    cat(sprintf("NOTE: the target Y is reached %d times in the search range (X = %s); the result refers to X = %s. Narrow the search range to select another solution.\n\n",
+                length(risultato$altre_soluzioni) + 1, paste(signif(c(risultato$x0, risultato$altre_soluzioni), 6), collapse = ", "), signif(risultato$x0, 6)))
   cat(sprintf("Estimated %s value: %.5f\n", input$label_x, risultato$x0))
   
   if (!is.na(risultato$errore_x)) {
@@ -11968,12 +12158,6 @@ calcola_loss_generica <- function(y_pred, y, tipo_loss, pesi = NULL) {
   switch(tipo_loss,
          "mse" = if (is.null(pesi)) sum(errori^2, na.rm = TRUE) else sum(pesi * errori^2, na.rm = TRUE),
          "mae" = sum(abs(errori), na.rm = TRUE),
-         "huber" = {
-           delta <- 1.345 * mad(errori, na.rm = TRUE)
-           if (is.na(delta) || delta == 0) delta <- 1.0
-           condizione <- abs(errori) <= delta
-           sum(ifelse(condizione, 0.5 * (errori^2), delta * (abs(errori) - 0.5 * delta)), na.rm = TRUE)
-         },
          "log10cosh" = {
            log_cosh <- ifelse(abs(errori) < 20, log(cosh(errori)), abs(errori) - log(2))
            sum(log_cosh / log(10), na.rm = TRUE)
@@ -13751,6 +13935,7 @@ leggi_dati_batch <- function() {
 adatta_campione_batch <- function(df, formula_stringa, guesses, fissi, limiti_inferiori, limiti_superiori, tipo_loss, algoritmo, maxiter_scelto,
                                    usa_monte_carlo = FALSE, n_boot = 100, tipo_rumore = "bootstrap", sigma_noto = NA, ponderazione = NULL) {
   n <- nrow(df); p <- length(guesses)
+  residui_boot <- NULL   # Monte Carlo residuals, kept in the result (as in Single Fit)
   # Weighted regression (MSE only), as in Single Fit: weights w = 1/yhat^zeta
   # with iteratively reweighted least squares. ponderazione = NULL (or not
   # active): radice_pesi stays NULL and the computation is identical to the usual one.
@@ -13806,7 +13991,7 @@ adatta_campione_batch <- function(df, formula_stringa, guesses, fissi, limiti_in
         if (any(!is.finite(y_pred))) return(rep(1e5, n))
         if (is.null(radice_pesi)) y_target - y_pred else radice_pesi * (y_target - y_pred)
       }
-      fit <- nls.lm(par = guess_iniziale, fn = residui_lm_locale, jac = jacobiano_residui_locale, lower = limiti_inferiori, upper = limiti_superiori,
+      fit <- nls_lm_vincoli(par = guess_iniziale, fn = residui_lm_locale, jac = jacobiano_residui_locale, lower = limiti_inferiori, upper = limiti_superiori,
                     control = controllo_lm(maxiter_scelto, length(guess_iniziale), tolleranza))
       list(par = fit$par, hessian = fit$hessian, convergenza_vera = fit$info %in% 1:4)
     } else if (algoritmo == "L-BFGS-B") {
@@ -13859,7 +14044,7 @@ adatta_campione_batch <- function(df, formula_stringa, guesses, fissi, limiti_in
   residui <- df$y - y_pred
   sse <- sum(residui^2)
   # Value of the loss ACTUALLY minimized (not necessarily SSE:
-  # for Huber/MAE/Log10Cosh/RMSLE it is a different number, computed with the
+  # for MAE/Log10Cosh/RMSLE it is a different number, computed with the
   # same function used during the search) - R2/AIC/BIC instead always remain
   # based on SSE by definition of those metrics, regardless of
   # which loss was chosen to drive the optimization.
@@ -13972,6 +14157,10 @@ adatta_campione_batch <- function(df, formula_stringa, guesses, fissi, limiti_in
        aic = aic, aicc = aicc, bic = bic, convergenza_vera = convergenza_vera,
        x = df$x, y = df$y, x_griglia = seq(min(df$x), max(df$x), length.out = 150),
        messaggio = if (convergenza_vera) "OK" else "Did not fully converge",
+       residui_bootstrap = residui_boot,
+       parametri_su_limite = if (algoritmo_effettivo(algoritmo, tipo_loss) %in% ALGORITMI_CON_VINCOLI) parametri_su_limite(parametri_ottimi, limiti_inferiori, limiti_superiori) else character(0),
+       limiti_ignorati = !(algoritmo_effettivo(algoritmo, tipo_loss) %in% ALGORITMI_CON_VINCOLI) && limiti_presenti(limiti_inferiori, limiti_superiori),
+       parametri_fuori_limiti = if (!(algoritmo_effettivo(algoritmo, tipo_loss) %in% ALGORITMI_CON_VINCOLI)) parametri_fuori_limiti(parametri_ottimi, limiti_inferiori, limiti_superiori) else character(0),
        ponderazione = if (pesato) modifyList(ponderazione, list(iterazioni_irls = iterazioni_irls)) else list(attiva = FALSE), pesi = pesi)
 }
 
@@ -14429,6 +14618,15 @@ observeEvent(input$esegui_batch, {
   sl_risultato(NULL)
   showNotification(paste0("Batch complete: ", n_successo, "/", n_campioni, " samples fitted successfully."), 
                     type = if (n_successo == n_campioni) "message" else "warning", duration = 8)
+  if (input$tipo_loss == "mae" && input$algoritmo %in% c("BFGS", "L-BFGS-B"))
+    showNotification("The MAE loss is not differentiable: BFGS and L-BFGS-B, which use derivatives, may stop far from the minimum. Nelder-Mead is recommended with MAE.", type = "warning", duration = 12)
+  n_su_limite <- sum(sapply(risultati, function(r) length(r$parametri_su_limite) > 0))
+  if (n_su_limite > 0)
+    showNotification(paste0(n_su_limite, " sample(s) with parameter(s) on a bound (column On Bound): their standard errors and confidence intervals are not reliable."), type = "warning", duration = 12)
+  n_fuori <- sum(sapply(risultati, function(r) length(r$parametri_fuori_limiti) > 0))
+  if (n_fuori > 0)
+    showNotification(paste0(input$algoritmo, " does not use parameter bounds: they were ignored, and in ", n_fuori,
+                            " sample(s) some estimates are outside them. Use Levenberg-Marquardt or L-BFGS-B to apply the bounds."), type = "warning", duration = 12)
 })
 
 output$stato_batch <- renderText({
@@ -14653,6 +14851,8 @@ batch_tabella_parametri_df <- reactive({
   righe <- lapply(br$risultati, function(r) {
     if (!isTRUE(r$successo)) return(data.frame(Sample = r$nome, Converged = "NO", stringsAsFactors = FALSE))
     riga <- data.frame(Sample = r$nome, Converged = if (isTRUE(r$convergenza_vera)) "Yes" else "NO (caution)", stringsAsFactors = FALSE)
+    if (any(sapply(br$risultati, function(q) length(q$parametri_su_limite) > 0)))
+      riga$On_Bound <- if (length(r$parametri_su_limite)) paste(sapply(r$parametri_su_limite, function(n) etichetta_parametro_batch(n, br)), collapse = ", ") else ""
     for (nome_par in names(r$parametri)) {
       etichetta <- etichetta_parametro_batch(nome_par, br)
       riga[[paste0(etichetta, "_Estimate")]] <- round(r$parametri[[nome_par]], 5)
@@ -15903,49 +16103,32 @@ output$sl_tabella_temperature <- renderUI({
   )
 })
 
-# ---- Robust root-finding: instead of calling uniroot() directly
-# on the interval [x_min, x_max] chosen by the user (which uniroot() ALWAYS
-# evaluates also at the ends, for its check on the sign change),
-# it first scans many intermediate points, discards the non-finite ones (overflow
-# or underflow of the exponential terms of the model - a real problem
-# discovered and numerically verified: with a too wide range, exp() can
-# overflow to Inf both in the numerator and in the denominator in some
-# models, giving Inf/Inf = NaN exactly at the point that uniroot() checks
-# first), and calls uniroot() only on the FIRST finite sub-interval with a
-# sign change found - much more stable than the full range.
-trova_intervallo_valido <- function(obiettivo, x_min, x_max, n_scan = 200) {
-  x_scan <- seq(x_min, x_max, length.out = n_scan)
-  y_scan <- sapply(x_scan, function(x) tryCatch(obiettivo(x), error = function(e) NA_real_))
-  validi <- is.finite(y_scan)
-  if (sum(validi) < 2) return(NULL)
-  x_validi <- x_scan[validi]
-  y_validi <- y_scan[validi]
-  segni <- sign(y_validi)
-  cambi <- which(diff(segni) != 0)
-  if (length(cambi) == 0) return(NULL)
-  i <- cambi[1]
-  c(x_validi[i], x_validi[i + 1])
-}
-
 # ---- Root-finding: point shelf life of a sample ----
+# First crossing of the critical value (smallest X), with the number of
+# crossings found in the range as an attribute (trova_soluzioni_x()).
 trova_radice_campione <- function(parametri, formula_stringa, y_critico, x_min, x_max) {
   obiettivo <- function(x) valuta_formula_generica(formula_stringa, as.list(parametri), x) - y_critico
-  intervallo <- trova_intervallo_valido(obiettivo, x_min, x_max)
-  if (is.null(intervallo)) return(NA_real_)
-  tryCatch(uniroot(obiettivo, interval = intervallo)$root, error = function(e) NA_real_)
+  soluzioni <- trova_soluzioni_x(obiettivo, x_min, x_max)$soluzioni
+  x0 <- if (length(soluzioni)) soluzioni[1] else NA_real_
+  attr(x0, "n_soluzioni") <- length(soluzioni)
+  x0
 }
 
 # ---- Empirical bootstrap distribution of the shelf life (Monte Carlo samples) ----
-trova_distribuzione_sl_mc <- function(mat_boot, formula_stringa, y_critico, x_min, x_max) {
+# For each bootstrap curve, the crossing closest to the point shelf life
+# (riferimento), so that all iterations refer to the same crossing. With
+# "New Observation" (rumore not NULL) a resampled residual is added to the
+# critical value at every iteration, as in Inverse Prediction: the interval then
+# includes the variability of a new observation, as with the delta method.
+trova_distribuzione_sl_mc <- function(mat_boot, formula_stringa, y_critico, x_min, x_max, riferimento, rumore = NULL) {
   n_boot <- nrow(mat_boot)
   sl_boot <- rep(NA_real_, n_boot)
   for (b in seq_len(n_boot)) {
     par_b <- mat_boot[b, ]
     if (any(!is.finite(par_b))) next
-    obiettivo <- function(x) valuta_formula_generica(formula_stringa, as.list(par_b), x) - y_critico
-    intervallo <- trova_intervallo_valido(obiettivo, x_min, x_max)
-    if (is.null(intervallo)) next
-    sl_boot[b] <- tryCatch(uniroot(obiettivo, interval = intervallo)$root, error = function(e) NA_real_)
+    y_critico_b <- if (length(rumore)) y_critico + sample(rumore, 1) else y_critico
+    obiettivo <- function(x) valuta_formula_generica(formula_stringa, as.list(par_b), x) - y_critico_b
+    sl_boot[b] <- soluzione_piu_vicina(trova_soluzioni_x(obiettivo, x_min, x_max)$soluzioni, riferimento)
   }
   sl_boot[is.finite(sl_boot)]
 }
@@ -15960,13 +16143,11 @@ calcola_se_sl_delta_method <- function(parametri, cov, rmse, formula_stringa, x0
   df_dx <- (valuta_formula_generica(formula_stringa, valori, x0 + h_x) - valuta_formula_generica(formula_stringa, valori, x0 - h_x)) / (2 * h_x)
   if (is.na(df_dx) || abs(df_dx) < 1e-12) return(NA_real_)
   
-  gradiente_par <- numeric(length(parametri))
-  for (j in seq_along(parametri)) {
-    h_j <- passo_derivata(parametri[j])
-    p_piu <- parametri; p_piu[j] <- p_piu[j] + h_j
-    p_meno <- parametri; p_meno[j] <- p_meno[j] - h_j
-    gradiente_par[j] <- (valuta_formula_generica(formula_stringa, as.list(p_piu), x0) - valuta_formula_generica(formula_stringa, as.list(p_meno), x0)) / (2 * h_j)
-  }
+  # Analytical derivatives with respect to the parameters (numerical only if the
+  # formula cannot be differentiated symbolically), as in the single fit.
+  gradiente_par <- as.numeric(tryCatch(crea_jacobiano_modello(formula_stringa, names(parametri))(parametri, x0), error = function(e) NULL))
+  if (length(gradiente_par) != length(parametri) || !all(is.finite(gradiente_par)))
+    gradiente_par <- as.numeric(jacobiano_numerico(function(p) valuta_formula_generica(formula_stringa, as.list(p), x0), parametri))
   
   var_param <- as.numeric(t(gradiente_par) %*% cov %*% gradiente_par)
   var_y <- if (tipo_intervallo == "predizione") rmse^2 else 0
@@ -15979,12 +16160,16 @@ calcola_se_sl_delta_method <- function(parametri, cov, rmse, formula_stringa, x0
 # propagable uncertainty). ----
 costruisci_fonte_sl <- function(r, formula_stringa, y_critico, x_min, x_max, tipo_intervallo) {
   x0 <- trova_radice_campione(r$parametri, formula_stringa, y_critico, x_min, x_max)
+  n_soluzioni <- attr(x0, "n_soluzioni"); x0 <- as.numeric(x0)
   if (is.na(x0)) return(list(successo = FALSE, messaggio = "No root found in the given X search range."))
   
   if (!is.null(r$mat_boot)) {
-    sl_boot <- trova_distribuzione_sl_mc(r$mat_boot, formula_stringa, y_critico, x_min, x_max)
+    # New observation: residuals of the Monte Carlo of the fit, brought back to the
+    # scale of the critical value with weighted regression (as in Inverse Prediction).
+    rumore <- if (identical(tipo_intervallo, "predizione") && length(r$residui_bootstrap)) r$residui_bootstrap * sqrt(varianza_relativa(r, y_critico)) else NULL
+    sl_boot <- trova_distribuzione_sl_mc(r$mat_boot, formula_stringa, y_critico, x_min, x_max, x0, rumore)
     if (length(sl_boot) >= 10) {
-      return(list(successo = TRUE, tipo = "empirico", valori = sl_boot, puntuale = x0, se = sd(sl_boot)))
+      return(list(successo = TRUE, tipo = "empirico", valori = sl_boot, puntuale = x0, se = sd(sl_boot), n_soluzioni = n_soluzioni))
     }
   }
   if (!is.null(r$cov)) {
@@ -15992,10 +16177,10 @@ costruisci_fonte_sl <- function(r, formula_stringa, y_critico, x_min, x_max, tip
     # the curve equals y_critico, is sigma^2 y_critico^zeta; without weights sigma^2.
     se_delta <- calcola_se_sl_delta_method(r$parametri, r$cov, r$rmse * sqrt(varianza_relativa(r, y_critico)), formula_stringa, x0, tipo_intervallo)
     if (!is.na(se_delta)) {
-      return(list(successo = TRUE, tipo = "gaussiano", media = x0, se = se_delta, puntuale = x0, df = r$df))
+      return(list(successo = TRUE, tipo = "gaussiano", media = x0, se = se_delta, puntuale = x0, df = r$df, n_soluzioni = n_soluzioni))
     }
   }
-  list(successo = TRUE, tipo = "solo_punto", puntuale = x0, se = NA_real_)
+  list(successo = TRUE, tipo = "solo_punto", puntuale = x0, se = NA_real_, n_soluzioni = n_soluzioni)
 }
 
 # ---- Main run: nested Arrhenius bootstrap ----
@@ -16130,6 +16315,11 @@ observeEvent(input$sl_esegui_analisi, {
   falliti <- names(Filter(function(f) !isTRUE(f$successo), fonti))
   if (length(falliti) > 0) {
     showNotification(paste("Could not find a shelf life for:", paste(falliti, collapse = ", "), "- try widening the X Search Range."), type = "warning", duration = 10)
+  }
+  multiple <- names(Filter(function(f) isTRUE(f$successo) && isTRUE(f$n_soluzioni > 1), fonti))
+  if (length(multiple) > 0) {
+    showNotification(paste0("The critical value is reached more than once in the X search range for: ", paste(multiple, collapse = ", "),
+                            ". The shelf life refers to the first crossing (smallest X); narrow the X search range to select another one."), type = "warning", duration = 12)
   }
   fonti_ok <- fonti[sapply(fonti, function(f) isTRUE(f$successo))]
   if (length(fonti_ok) < 3) {

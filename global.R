@@ -1,5 +1,5 @@
 # ==============================================================================
-# EASY NON-LINEAR REGRESSION TOOL v1.0.0 - GLOBAL
+# EASY NON-LINEAR REGRESSION TOOL v1.0.1 - GLOBAL
 # ==============================================================================
 # This file is executed by Shiny BEFORE loading the R/ folder (which contains
 # ui.R and server.R). All library() calls and any definition that ui.R/server.R

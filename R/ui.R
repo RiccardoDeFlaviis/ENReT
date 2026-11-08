@@ -203,6 +203,16 @@ ui <- fluidPage(
         white-space: normal !important;
         width: 100% !important;
       }
+      /* Exception for the band controls under the main plot: containers and
+         labels keep the width of their text, so that the two checkboxes stay
+         side by side. The two rules above give every checkbox container and
+         label the full width; these selectors are more specific than them. */
+      .comandi-bande div.shiny-input-container:has(> .checkbox),
+      .comandi-bande .checkbox label {
+        width: max-content !important;
+        max-width: 100% !important;
+      }
+      .comandi-bande div.shiny-input-container:has(> .checkbox) { margin-bottom: 0 !important; }
       .checkbox label input, .radio label input, .form-check-input {
         flex-shrink: 0 !important;
         margin-right: 8px !important;
@@ -569,9 +579,10 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
           tags$img(src = "data:image/png;base64,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", style = "height: 55px; width: auto;", alt = "ENReT logo"),
           tags$h4(style = "margin: 0; font-weight: bold; color: #2c3e50;",
                   "Easy Non-Linear Regression Tool ",
-                  tags$span(style = "font-size: 13px; color: #95a5a6; font-weight: normal;", "v1.0.0"),
+                  tags$span(style = "font-size: 13px; color: #95a5a6; font-weight: normal;", "v1.0.1"),
                   tags$span(style = "color: #18bc9c; font-style: italic; margin-left: 6px;", "for food technologists"))),
-      tags$div(style = "font-size: 12px; color: black; text-align: right;",
+      tags$div(style = "font-size: 12px; color: black; text-align: right; display: flex; align-items: baseline; gap: 14px;",
+               tags$a(href = "mailto:enret.app@gmail.com", style = "font-size: 14px; font-style: italic; color: #7f8c8d; text-decoration: none;", "enret.app@gmail.com"),
                tags$strong(style = "font-size: 18px;", "Riccardo De Flaviis, PhD"))
   ),
   
@@ -588,7 +599,10 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
       
       accordion(
         id = "sidebar_accordion",
-        open = "sec1",
+        # All sections closed at start, so that the user sees the full list of
+        # sections at a glance (the first entry into Batch and Simulator still
+        # opens Model Definition, see server.R).
+        open = FALSE,
         multiple = TRUE,
         
         accordion_panel(
@@ -824,7 +838,6 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
           selectInput("tipo_loss", "Select Loss Function:",
                       choices = c("Standard MSE (Least Squares)" = "mse",
                                   "MAE (Absolute Error - Robust)" = "mae",
-                                  "Huber Loss (Robust Smooth)" = "huber",
                                   "Log10Cosh Loss (Log-Hyperbolic)" = "log10cosh",
                                   "RMSLE (Root Mean Squared Log Error)" = "rmsle")),
           conditionalPanel(condition = "input.tipo_loss != 'mse'",
@@ -856,6 +869,11 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
                                   "Simplex (Nelder-Mead)" = "Nelder-Mead", 
                                   "Quasi-Newton (BFGS)" = "BFGS",
                                   "Bounded Quasi-Newton (L-BFGS-B)" = "L-BFGS-B")),
+          conditionalPanel(
+            condition = "input.tipo_loss == 'mae' && (input.algoritmo == 'BFGS' || input.algoritmo == 'L-BFGS-B')",
+            p(style = "color:#e67e22; font-size:12px; margin-top:-8px; margin-bottom:10px;",
+              tags$em("The MAE loss is not differentiable: BFGS and L-BFGS-B, which use derivatives, may stop far from the minimum. Nelder-Mead is recommended with MAE."))
+          ),
           
           selectInput("metodo_errore", "Parameter Error Method:", 
                       choices = c("Linear Approximation (Jacobian)" = "lineare", "Monte Carlo (Bootstrap)" = "monte_carlo")),
@@ -863,7 +881,7 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
           conditionalPanel(
             condition = "input.metodo_errore == 'lineare' && input.tipo_loss != 'mse'",
             p(style = "color:#e67e22; font-size:12px; margin-top:-8px; margin-bottom:10px;",
-              tags$em("Warning: the Jacobian-based error approximation is rigorously valid only for MSE loss. For MAE, Huber, Log10Cosh or RMSLE, Monte Carlo (Bootstrap) is recommended."))
+              tags$em("Warning: the Jacobian-based error approximation is rigorously valid only for MSE loss. For MAE, Log10Cosh or RMSLE, Monte Carlo (Bootstrap) is recommended."))
           ),
           
           conditionalPanel(
@@ -893,16 +911,6 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
           p(style = "font-size: 11px; color: #7f8c8d; margin-top: -10px;", 
             "Note: This dynamically adjusts both Linear (Z-score) and Monte Carlo (empirical quantiles) bounds."),
           
-          checkboxInput("mostra_ci", "Show Confidence Intervals", value = TRUE),
-          # Sub-option of the confidence band: visible only with the band
-          # active and the linear method (with Monte Carlo it has no effect).
-          conditionalPanel(condition = "input.mostra_ci && input.metodo_errore != 'monte_carlo'",
-            div(style = "margin-left: 20px;",
-              checkboxInput("banda_simultanea", "Simultaneous confidence band (Bates & Watts, 1988)", value = FALSE),
-              conditionalPanel(condition = "input.banda_simultanea",
-                p(style = "font-size: 11px; color: #7f8c8d; margin-top: -8px;",
-                  "The band holds for the whole curve at once (1\u2212\u03b1 approximate inference band, Bates & Watts, 1988, chapter 2): the t multiplier of the pointwise band is replaced by \u221a(p\u00b7F(p, n\u2212p; \u03b1)), which makes it wider. The prediction band remains pointwise.")))),
-          checkboxInput("mostra_pi", "Show Prediction Intervals", value = TRUE),
           hr(),
           tags$strong(style = "font-size: 13px;", "Advanced Settings:"),
           p(style = "font-size: 11px; color: #7f8c8d; margin-bottom: 8px;", "Change these only if needed: they can strongly affect both the results and the computation time."),
@@ -976,7 +984,7 @@ div(style = "display: flex; justify-content: space-between; align-items: center;
                 tags$li("A library of 62 built-in models across 9 categories (microbial growth, microbial inactivation and Weibull models, reaction and enzyme kinetics, mass transfer, rheology and texture, water activity and sorption isotherms, statistical distributions), plus 42 models for the reference datasets (26 NIST StRD, 15 Bates & Watts and 1 Carroll & Ruppert) and support for fully custom formulas."),
                 tags$li("Flexible data input: direct entry, CSV/Excel upload (single-sample and multi-sample formats), synthetic data generation, or 67 built-in reference datasets (26 from ComBase, 26 certified NIST StRD nonlinear regression datasets, 14 from Bates & Watts, Nonlinear Regression Analysis and Its Applications, and 1 from Carroll & Ruppert, Transformation and Weighting in Regression, for weighted regression), plus 2 real example datasets for Batch Elaboration (Nisha et al., 2004, 2005)."),
                 tags$li("Multiple optimization algorithms (Levenberg-Marquardt with analytical derivatives, BFGS, L-BFGS-B, Nelder-Mead), loss functions, weighted least squares (weights 1/\u0177^\u03b6, with \u03b6 fixed or estimated from the replicates, in Single Fit and Batch Elaboration), and error estimation methods: classic standard errors from the linear approximation, Monte Carlo intervals (residual bootstrap or Gaussian noise), and profile-likelihood intervals."),
-tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statistical Reference Datasets"), " for nonlinear regression: with Levenberg-Marquardt, 48 of 52 runs reproduce the certified parameters, standard errors and residual sum of squares to at least 4 significant digits (the remaining four are explained by a typographical error in a NIST certificate and by the limits of double-precision arithmetic)."),
+tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statistical Reference Datasets"), " for nonlinear regression: with Levenberg-Marquardt, 50 of 52 runs reproduce the certified parameters, standard errors and residual sum of squares to at least 4 significant digits (the remaining two, both on the Lanczos1 dataset, are explained by the limits of double-precision arithmetic: its certified residual sum of squares is about 1.4\u00b710\u207b\u00b2\u2075)."),
                 tags$li("An ", tags$strong("Initial Guess Simulator"), " tab to visually adjust and animate initial guesses before running the main optimization \u2014 available above to help you find good starting values."),
                 tags$li("A ", tags$strong("Profile Likelihood"), " section with exact profile confidence intervals, t-plots and profile traces for every parameter, and a ", tags$strong("Loss Surface Explorer"), " with 2D/3D grid search and rigorous confidence regions."),
                 tags$li("A ", tags$strong("Batch Elaboration"), " tab for fitting many samples at once, with parameter and shelf-life comparison plots, significance testing, and post-hoc analysis."),
@@ -985,6 +993,12 @@ tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statis
                 tags$li("Extensive plot customization (colors, fonts, ranges, legends) for every graph in the app, plus export to Excel, CSV, and downloadable plots (JPEG/PDF), combined multi-panel images, or full ZIP archives."),
                 tags$li("An Operator Configuration panel to save and reload your preferred display and computation settings.")
               ),
+              tags$strong("How to cite: "), "please cite the article that describes ENReT: De Flaviis, R., & Sacchetti, G. (2026). ENReT: An open-source R-based tool for non-linear modelling specifically implemented for Food Science and Technology applications [Preprint]. Research Square. ",
+              tags$a(href = "https://doi.org/10.21203/rs.3.rs-11577802/v1", target = "_blank", "https://doi.org/10.21203/rs.3.rs-11577802/v1"),
+              ". To indicate the software, please also cite: De Flaviis, R. (2026). ENReT: Easy Non-linear Regression Tool [Computer software]. Zenodo. ",
+              tags$a(href = "https://doi.org/10.5281/zenodo.23839618", target = "_blank", "https://doi.org/10.5281/zenodo.23839618"),
+              " (the DOI of each version is listed on that page).",
+              tags$br(), tags$br(),
               "For any suggestions or questions, please contact me: enret.app@gmail.com"
             )
         )
@@ -1022,8 +1036,25 @@ tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statis
                  ),
                  plotOutput("grafico_fit", height = "380px"),
                  div(style = "margin-top: 8px;", downloadButton("scarica_grafico_fit", "Download Plot", class = "btn-outline-secondary btn-sm"), actionButton("btn_estetica_fit", "🎨", class = "btn-outline-secondary btn-sm", title = "Customize this plot")),
+                 # Confidence and prediction bands of this plot: controls placed next to
+                 # the plot they act on (previously in the sidebar), as for the
+                 # Arrhenius plot of Shelf-Life, and shown only after the first fit
+                 # (input.esegui > 0), then always. The confidence level stays in the
+                 # sidebar, because it also applies to the parameter intervals.
+                 conditionalPanel(condition = "input.esegui > 0", class = "comandi-bande",
+                   div(style = "display: flex; flex-wrap: wrap; gap: 0 28px; align-items: center; margin-top: 8px;",
+                       checkboxInput("mostra_ci", "Show Confidence Intervals", value = TRUE, width = "auto"),
+                       checkboxInput("mostra_pi", "Show Prediction Intervals", value = TRUE, width = "auto")),
+                   # Sub-option of the confidence band: visible only with the band
+                   # active and the linear method (with Monte Carlo it has no effect).
+                   conditionalPanel(condition = "input.mostra_ci && input.metodo_errore != 'monte_carlo'",
+                     div(style = "margin-left: 20px; margin-top: 2px;",
+                       checkboxInput("banda_simultanea", "Simultaneous confidence band (Bates & Watts, 1988)", value = FALSE, width = "auto"),
+                       conditionalPanel(condition = "input.banda_simultanea",
+                         div(style = "max-width: 70%;", p(style = "font-size: 11px; color: #7f8c8d; margin-top: -6px;",
+                  "The band holds for the whole curve at once (1\u2212\u03b1 approximate inference band, Bates & Watts, 1988, chapter 2): the t multiplier of the pointwise band is replaced by \u221a(p\u00b7F(p, n\u2212p; \u03b1)), which makes it wider. The prediction band remains pointwise.")))))),
                  
-                 div(style = "background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px; margin-top: 15px; margin-bottom: 15px; max-width: 50%;",
+                 div(style = "background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px; margin-top: 15px; margin-bottom: 15px;",
                      tags$h5(style = "margin-top: 0; color: #2c3e50;", icon("file-export"), " Export Data Tables and Figures"),
                      p(style = "font-size: 13px; color: #7f8c8d;", 
                        "CSV/Excel: Model Info, Parameter Estimates (with CI), Fixed Parameters, Goodness-of-Fit Diagnostics, Predictions & Residuals, 1000-Point Dense Curve, Monte Carlo Bootstrap Sets, Normality Diagnostics, Correlation Matrix, Sensitivity Analysis, and Loss Surface Explorer results (whichever of these are currently available). ZIP: every plot shown in this tab, as individual image files."),
@@ -1387,7 +1418,7 @@ tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statis
                      uiOutput("mc_sl_y_critico_ui"),
                      numericInput("mc_sl_x_min", "X Search Range Min:", value = 0.01),
                      uiOutput("mc_sl_x_max_ui"),
-                     selectInput("mc_sl_tipo_intervallo", "Uncertainty Type (Linear method fits):",
+                     selectInput("mc_sl_tipo_intervallo", "Uncertainty Type:",
                                 choices = c("New Observation (incl. residual var.)" = "predizione",
                                             "Mean Response Only" = "media"))
                    ),
@@ -1667,7 +1698,7 @@ tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statis
                      uiOutput("sl_y_critico_ui"),
                      numericInput("sl_x_min", "X Search Range Min:", value = 0.01),
                      uiOutput("sl_x_max_ui"),
-                     selectInput("sl_tipo_intervallo", "Uncertainty Type (Linear method samples):",
+                     selectInput("sl_tipo_intervallo", "Uncertainty Type:",
                                 choices = c("New Observation (incl. residual var.)" = "predizione",
                                             "Mean Response Only" = "media"))
                    ),
@@ -1710,6 +1741,16 @@ tags$li("Least-squares fitting validated against the ", tags$strong("NIST Statis
         ),
         tabPanel(title = "References and R Packages", value = "tab_ref",
                  br(),
+                 tags$h4("How to Cite ENReT"),
+                 tags$p(style = "font-size: 14px; margin-bottom: 4px;", "If you use ENReT, please cite the article that describes it (preprint, not yet peer reviewed):"),
+                 tags$ul(style = "line-height: 1.8; font-size: 14px;",
+                         tags$li("De Flaviis, R., & Sacchetti, G. (2026). ENReT: An open-source R-based tool for non-linear modelling specifically implemented for Food Science and Technology applications [Preprint]. Research Square. ",
+                                 tags$a(href = "https://doi.org/10.21203/rs.3.rs-11577802/v1", target = "_blank", "https://doi.org/10.21203/rs.3.rs-11577802/v1"))),
+                 tags$p(style = "font-size: 14px; margin-bottom: 4px;", "To indicate the software, please also cite it (the DOI below represents all versions; the DOI of each version is listed on its Zenodo page):"),
+                 tags$ul(style = "line-height: 1.8; font-size: 14px;",
+                         tags$li("De Flaviis, R. (2026). ENReT: Easy Non-linear Regression Tool [Computer software]. Zenodo. ",
+                                 tags$a(href = "https://doi.org/10.5281/zenodo.23839618", target = "_blank", "https://doi.org/10.5281/zenodo.23839618"))),
+                 hr(),
                  tags$h4("Scientific References"),
                  tags$ul(style = "line-height: 1.8; font-size: 14px;",
                          tags$li("Barbosa-Cánovas, G. V., Fontana Jr, A. J., Schmidt, S. J., & Labuza, T. P. (2020). Water activity in foods: fundamentals and applications. John Wiley & Sons."),

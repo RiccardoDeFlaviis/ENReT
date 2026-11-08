@@ -30,6 +30,7 @@ prepara_dati_export <- function() {
   df_params <- data.frame(Parameter = names(res$parametri), Estimate = as.numeric(res$parametri), Std_Error = as.numeric(res$errori))
   df_params$CI_Parametric_Lower <- df_params$Estimate - (crit_val * df_params$Std_Error)
   df_params$CI_Parametric_Upper <- df_params$Estimate + (crit_val * df_params$Std_Error)
+  df_params$On_Bound <- ifelse(names(res$parametri) %in% res$parametri_su_limite, "Yes", "No")
   
   # With Monte Carlo, it also adds the EMPIRICAL interval (direct quantiles
   # of the bootstrap distribution), which unlike the parametric one
@@ -108,11 +109,9 @@ prepara_dati_export <- function() {
     n_par <- length(res$parametri)
     y_base <- res$valuta(res$parametri, x_dense)
     sens <- data.frame(X_Grid_Value = x_dense)
+    G <- gradiente_parametri(res, x_dense)
     for (j in seq_len(n_par)) {
-      h_j <- passo_derivata(res$parametri[j])
-      p_piu <- res$parametri; p_piu[j] <- p_piu[j] + h_j
-      p_meno <- res$parametri; p_meno[j] <- p_meno[j] - h_j
-      dydtheta <- (res$valuta(p_piu, x_dense) - res$valuta(p_meno, x_dense)) / (2 * h_j)
+      dydtheta <- G[, j]
       sens[[paste0("Sensitivity_", names(res$parametri)[j])]] <- ifelse(abs(y_base) > 1e-10, dydtheta * (res$parametri[j] / y_base), NA)
     }
     sens

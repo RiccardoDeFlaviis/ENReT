@@ -54,6 +54,18 @@ shiny::runGitHub("ENReT", "RiccardoDeFlaviis")
 
 To run a specific version, download its archive from the **Releases** page of this repository, or from Zenodo.
 
+### Start with a double click (Windows)
+
+On Windows, the local version can also be started without typing any command, with the file `Start_ENReT.bat`, which can be downloaded separately from the [**Releases**](https://github.com/RiccardoDeFlaviis/ENReT/releases) page (it is not included in the archive of the code). R must be installed (step 1 above); the packages are installed automatically the first time.
+
+1. Download and unzip the repository (step 3 above).
+2. Download `Start_ENReT.bat` from the latest release and put it in the unzipped folder, next to `app.R`: the file starts the app contained in its own folder.
+3. **The first time only**: right-click `Start_ENReT.bat` → **Properties** → tick **Unblock** at the bottom of the window → **OK**. Windows blocks the files downloaded from the internet; without this step the file may not start. When downloading, the browser may also ask you to confirm that you want to keep the file.
+4. Double-click `Start_ENReT.bat`. The first time, the missing packages are installed (an internet connection is needed, and it may take a few minutes); then ENReT opens in your web browser.
+5. Keep the black window open while you use ENReT: closing it stops the app.
+
+The file looks for R in the system path, in the Windows registry and in the standard installation folder. If R is not found, it says so and indicates where to download it.
+
 ### Repository structure
 
 | Path | Content |
@@ -70,7 +82,7 @@ Code comments are in English; internal function and variable names are in Italia
 ## Documentation
 
 - **User guide**: [`docs/ENReT_guide.pdf`](docs/ENReT_guide.pdf) - an introduction to the application, its structure and two guided examples (single fit and batch elaboration). Start here.
-- **Statistical details and validation**: [`docs/ENReT_statistical_details_v1.0.0.pdf`](docs/ENReT_statistical_details_v1.0.0.pdf) - the R functions used for the computations, the noteworthy statistical and numerical choices of the application, with their sources, and the numerical validation.
+- **Statistical details and validation**: [`docs/ENReT_statistical_details_v1.0.1.pdf`](docs/ENReT_statistical_details_v1.0.1.pdf) - the R functions used for the computations, the noteworthy statistical and numerical choices of the application, with their sources, and the numerical validation.
 - **Validation results**: [`docs/ENReT_v1.0.0_validation_results.xlsx`](docs/ENReT_v1.0.0_validation_results.xlsx) - workbook with the complete results of the validation (NIST, Bates & Watts, Carroll & Ruppert, ComBase).
 - **Version history**: [`CHANGELOG.md`](CHANGELOG.md).
 

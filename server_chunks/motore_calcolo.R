@@ -91,6 +91,11 @@ elaborazione <- eventReactive(input$esegui, {
   # iterations, would risk making the computation impractically slow.
   maxiter_scelto <- min(max(maxiter_scelto, 50), 2000)
   algoritmo <- algoritmo_effettivo(input$algoritmo, input$tipo_loss)
+  # MAE is not differentiable: the gradient-based BFGS and L-BFGS-B can stop far from
+  # the minimum (16-87% higher loss in the engine review) or fail (L-BFGS-B, code 52);
+  # Nelder-Mead reaches it. Shown before the fit, so that it appears also if the fit fails.
+  if (input$tipo_loss == "mae" && algoritmo %in% c("BFGS", "L-BFGS-B"))
+    showNotification("The MAE loss is not differentiable: BFGS and L-BFGS-B, which use derivatives, may stop far from the minimum. Nelder-Mead is recommended with MAE.", type = "warning", duration = 12)
   esponente_tol <- esponente_tolleranza(input$esponente_tolleranza, algoritmo)
   tolleranza <- 10^esponente_tol
   accetta_non_conv <- isTRUE(input$accetta_non_convergenti)
@@ -140,12 +145,6 @@ elaborazione <- eventReactive(input$esegui, {
     res_loss <- switch(input$tipo_loss,
                        "mse" = if (is.null(pesi_radice)) sum(errori^2, na.rm = TRUE) else sum((pesi_radice * errori)^2, na.rm = TRUE),
                        "mae" = sum(abs(errori), na.rm = TRUE),
-                       "huber" = {
-                         delta <- 1.345 * mad(errori, na.rm = TRUE) 
-                         if(is.na(delta) || delta == 0) delta <- 1.0
-                         condizione <- abs(errori) <= delta
-                         sum(ifelse(condizione, 0.5 * (errori^2), delta * (abs(errori) - 0.5 * delta)), na.rm = TRUE)
-                       },
                        "log10cosh" = {
                          log_cosh <- ifelse(abs(errori) < 20, log(cosh(errori)), abs(errori) - log(2))
                          sum(log_cosh / log(10), na.rm = TRUE)
@@ -186,7 +185,7 @@ elaborazione <- eventReactive(input$esegui, {
   convergenza_vera <- TRUE
   tryCatch({
     if (algoritmo == "LM" && input$tipo_loss == "mse") {
-      fit <- nls.lm(par = guesses, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = df$y,
+      fit <- nls_lm_vincoli(par = guesses, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = df$y,
                     lower = limiti_inferiori, upper = limiti_superiori,
                     control = controllo_lm(maxiter_scelto, length(guesses), tolleranza))
       parametri_ottimi <- fit$par
@@ -256,7 +255,7 @@ elaborazione <- eventReactive(input$esegui, {
   if (pond$attiva) {
     esegui_fit_pesato <- function(partenza) tryCatch({
       if (algoritmo == "LM") {
-        f <- nls.lm(par = partenza, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = df$y, lower = limiti_inferiori, upper = limiti_superiori,
+        f <- nls_lm_vincoli(par = partenza, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = df$y, lower = limiti_inferiori, upper = limiti_superiori,
                     control = controllo_lm(maxiter_scelto, length(partenza), tolleranza))
         list(par = f$par, iter = f$niter, conv = f$info %in% 1:4)
       } else if (algoritmo == "L-BFGS-B") {
@@ -341,7 +340,7 @@ elaborazione <- eventReactive(input$esegui, {
   covarianza_problematica <- FALSE
   # "Classic" standard errors (Linear method): valid ONLY for least
   # squares. The formula s^2 (J^T J)^-1 derives from the SSE loss; with MAE,
-  # Huber, log10cosh or RMSLE applying it (as was done before, on the Hessian
+  # log10cosh or RMSLE applying it (as was done before, on the Hessian
   # of the chosen loss) gave plausible but wrong numbers. With these losses
   # they are not computed: the Monte Carlo method is suggested, whose empirical
   # intervals are valid with any loss.
@@ -383,6 +382,10 @@ elaborazione <- eventReactive(input$esegui, {
   sigma_mc_usato <- NA
   n_boot_successo <- NA
   n_boot_totale <- NA
+  # Residuals resampled by the Monte Carlo method (leverage-corrected and centred,
+  # Davison & Hinkley, 1997), kept in the result so that Inverse Prediction and
+  # Shelf-Life add the same noise for a new observation as the prediction band.
+  residui_boot <- NULL
   if (input$metodo_errore == "monte_carlo") {
     n_sim <- if (is.null(input$n_boot) || is.na(input$n_boot) || input$n_boot <= 0) 100 else input$n_boot
     # Same server-side safety constraint: the number of Monte Carlo
@@ -417,7 +420,7 @@ elaborazione <- eventReactive(input$esegui, {
         y_f <- y_pred + rumore_campionato
         try({
           if (algoritmo == "LM" && input$tipo_loss == "mse") {
-            fit_boot <- nls.lm(par = parametri_ottimi, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = y_f,
+            fit_boot <- nls_lm_vincoli(par = parametri_ottimi, fn = residui_lm, jac = jacobiano_residui_lm, x = df$x, y = y_f,
                                lower = limiti_inferiori, upper = limiti_superiori,
                                control = controllo_lm(maxiter_scelto, length(parametri_ottimi), tolleranza))
             # Discards this iteration if it does not really converge, UNLESS
@@ -504,6 +507,20 @@ elaborazione <- eventReactive(input$esegui, {
                        type = "warning", duration = 12)
     }
   }
+  # ---- Parameters on a bound, and bounds ignored by the algorithm ----
+  su_limite <- if (algoritmo %in% ALGORITMI_CON_VINCOLI) parametri_su_limite(parametri_ottimi, limiti_inferiori, limiti_superiori) else character(0)
+  limiti_ignorati <- !(algoritmo %in% ALGORITMI_CON_VINCOLI) && limiti_presenti(limiti_inferiori, limiti_superiori)
+  if (length(su_limite) > 0)
+    showNotification(paste0("Parameter(s) on a bound: ", paste(su_limite, collapse = ", "), ". This is the best fit within the bounds, but the standard error and the confidence interval of ",
+                            if (length(su_limite) == 1) "this parameter" else "these parameters", " are not reliable (the uncertainty is one-sided). Consider fixing ",
+                            if (length(su_limite) == 1) "it" else "them", " at the bound value, removing the bound, or using a simpler model."), type = "warning", duration = 15)
+  # Warning only when ignoring the bounds changed the result (an estimate outside
+  # them): many registry models have default bounds, and a warning at every
+  # BFGS or Nelder-Mead fit would soon no longer be read.
+  fuori_limiti <- if (limiti_ignorati) parametri_fuori_limiti(parametri_ottimi, limiti_inferiori, limiti_superiori) else character(0)
+  if (length(fuori_limiti) > 0)
+    showNotification(paste0(algoritmo, " does not use parameter bounds: they were ignored, and the estimate of ", paste(fuori_limiti, collapse = ", "),
+                            " is outside them. Use Levenberg-Marquardt or L-BFGS-B to apply the bounds."), type = "warning", duration = 15)
   if (convergenza_vera && !covarianza_problematica) {
     showNotification("✓ Modeling Successful! Parameter estimation and model convergence completed successfully.", type = "message", duration = 4)
   } else if (convergenza_vera && covarianza_problematica) {
@@ -527,6 +544,8 @@ elaborazione <- eventReactive(input$esegui, {
        x_griglia=x_griglia_estesa, df_originale=df,
        tipo_rumore_mc=if(input$metodo_errore=="monte_carlo") input$tipo_rumore_mc else NA,
        sigma_mc=sigma_mc_usato, fissi=fissi, convergenza_vera=convergenza_vera,
+       residui_bootstrap=residui_boot,
+       parametri_su_limite=su_limite, limiti_ignorati=limiti_ignorati, parametri_fuori_limiti=fuori_limiti,
        n_boot_successo=n_boot_successo, n_boot_totale=n_boot_totale,
        tipo_modello_usato=input$tipo_modello, ponderazione=pond, pesi=pesi,
        ripartenze_nm = if (identical(algoritmo, "Nelder-Mead")) list(attive = ripartenze_nm, usate = ripartenze_usate) else NULL)

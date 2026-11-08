@@ -78,12 +78,7 @@ calcola_bande_grafico <- function(res) {
   mc <- identical(input$metodo_errore, "monte_carlo")
   out <- list(x = x_seq, y = y_seq)
   se_curva <- function() {
-    G <- sapply(seq_along(res$parametri), function(j) {
-      h_j <- passo_derivata(res$parametri[j])
-      pp <- res$parametri; pp[j] <- pp[j] + h_j; pm <- res$parametri; pm[j] <- pm[j] - h_j
-      (res$valuta(pp, x_seq) - res$valuta(pm, x_seq)) / (2 * h_j)
-    })
-    if (is.null(dim(G))) G <- matrix(G, ncol = length(res$parametri))
+    G <- gradiente_parametri(res, x_seq)
     sqrt(rowSums((G %*% res$cov) * G))
   }
   lineare_ok <- !is.null(res$cov) && all(res$errori > 0, na.rm = TRUE)
@@ -166,19 +161,22 @@ disegna_grafico_fit <- function(df, res) {
     p_sup <- 1 - p_inf
     
     if (!is.null(bande$nota)) mtext(bande$nota, side = 3, line = 0.2, cex = 0.75 * fnt_cex, col = "#d35400")
+    # Line types of the bands (customizable; defaults: dotted / dot-dash, as before)
+    lty_ci <- as.numeric(if (is.null(input$ci_lty_fit)) "3" else input$ci_lty_fit)
+    lty_pi <- as.numeric(if (is.null(input$pi_lty_fit)) "4" else input$pi_lty_fit)
     if (!is.null(bande$pi_inf)) {
       colore_pi <- rgb(0.95, 0.76, 0.76, ci_alpha)
       polygon(c(x_seq, rev(x_seq)), c(bande$pi_sup, rev(bande$pi_inf)), col = colore_pi, border = NA)
-      lines(x_seq, bande$pi_sup, col = ln_col, lty = 4, lwd = 1.2)
-      lines(x_seq, bande$pi_inf, col = ln_col, lty = 4, lwd = 1.2)
+      lines(x_seq, bande$pi_sup, col = ln_col, lty = lty_pi, lwd = 1.2)
+      lines(x_seq, bande$pi_inf, col = ln_col, lty = lty_pi, lwd = 1.2)
     }
     if (!is.null(bande$ci_inf)) {
       if (identical(bande$ci_tipo, "monte_carlo")) {
         polygon(c(x_seq, rev(x_seq)), c(bande$ci_sup, rev(bande$ci_inf)), col = rgb(0.1, 0.7, 0.1, ci_alpha / 2), border = NA)
-        lines(x_seq, bande$ci_sup, col = "darkgreen", lty = 3); lines(x_seq, bande$ci_inf, col = "darkgreen", lty = 3)
+        lines(x_seq, bande$ci_sup, col = "darkgreen", lty = lty_ci); lines(x_seq, bande$ci_inf, col = "darkgreen", lty = lty_ci)
       } else {
         polygon(c(x_seq, rev(x_seq)), c(bande$ci_sup, rev(bande$ci_inf)), col = rgb(0.7, 0.7, 0.7, ci_alpha), border = NA)
-        lines(x_seq, bande$ci_sup, col = "gray50", lty = 3); lines(x_seq, bande$ci_inf, col = "gray50", lty = 3)
+        lines(x_seq, bande$ci_sup, col = "gray50", lty = lty_ci); lines(x_seq, bande$ci_inf, col = "gray50", lty = lty_ci)
       }
     }
     lines(x_seq[is.finite(y_seq)], y_seq[is.finite(y_seq)], col = ln_col, lwd = ln_lwd, lty = ln_lty)
@@ -365,11 +363,9 @@ disegna_grafico_sensibilita <- function(res) {
   y_base <- res$valuta(res$parametri, x_seq)
   
   sensibilita <- matrix(NA_real_, nrow = length(x_seq), ncol = n_par)
+  G <- gradiente_parametri(res, x_seq)
   for (j in seq_len(n_par)) {
-    h_j <- passo_derivata(res$parametri[j])
-    p_piu <- res$parametri; p_piu[j] <- p_piu[j] + h_j
-    p_meno <- res$parametri; p_meno[j] <- p_meno[j] - h_j
-    dydtheta <- (res$valuta(p_piu, x_seq) - res$valuta(p_meno, x_seq)) / (2 * h_j)
+    dydtheta <- G[, j]
     # Protection against division by y_base ~ 0 (points where the model passes through zero)
     sensibilita[, j] <- ifelse(abs(y_base) > 1e-10, dydtheta * (res$parametri[j] / y_base), NA)
   }

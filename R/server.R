@@ -220,8 +220,10 @@ server <- function(input, output, session) {
                    column(4, selectInput("ln_lty_fit", "Fit Line Type:", choices = c("Solid" = "1", "Dashed" = "2", "Dotted" = "3", "Dot-dash" = "4"), selected = if(is.null(input$ln_lty_fit)) "1" else input$ln_lty_fit))
                  ),
                  fluidRow(
-                   column(4, sliderInput("ci_alpha_fit", "Interval Opacity:", min = 0.05, max = 0.9, value = if(is.null(input$ci_alpha_fit)) 0.3 else input$ci_alpha_fit, step = 0.05)),
-                   column(4, sliderInput("fnt_cex_fit", "Text & Axis Size:", min = 0.7, max = 2.0, value = if(is.null(input$fnt_cex_fit)) 1.0 else input$fnt_cex_fit, step = 0.1))
+                   column(3, sliderInput("ci_alpha_fit", "Interval Opacity:", min = 0.05, max = 0.9, value = if(is.null(input$ci_alpha_fit)) 0.3 else input$ci_alpha_fit, step = 0.05)),
+                   column(3, sliderInput("fnt_cex_fit", "Text & Axis Size:", min = 0.7, max = 2.0, value = if(is.null(input$fnt_cex_fit)) 1.0 else input$fnt_cex_fit, step = 0.1)),
+                   column(3, selectInput("ci_lty_fit", "Confidence Band Line Type:", choices = c("Dotted" = "3", "Dashed" = "2", "Solid" = "1", "Dot-dash" = "4"), selected = if(is.null(input$ci_lty_fit)) "3" else input$ci_lty_fit)),
+                   column(3, selectInput("pi_lty_fit", "Prediction Band Line Type:", choices = c("Dot-dash" = "4", "Dashed" = "2", "Solid" = "1", "Dotted" = "3"), selected = if(is.null(input$pi_lty_fit)) "4" else input$pi_lty_fit))
                  ),
                  fluidRow(
                    column(4, sliderInput("inv_cex_legenda", "Legend Text Size (Inverse Prediction's \"Predicted X\" label):", min = 0.5, max = 1.5, value = if(is.null(input$inv_cex_legenda)) 0.9 else input$inv_cex_legenda, step = 0.05)),
@@ -1463,6 +1465,8 @@ server <- function(input, output, session) {
     updateSelectInput(session, "pt_pch_fit", selected = "16")
     updateSelectInput(session, "ln_lty_fit", selected = "1")
     updateSliderInput(session, "ci_alpha_fit", value = 0.3)
+    updateSelectInput(session, "ci_lty_fit", selected = "3")
+    updateSelectInput(session, "pi_lty_fit", selected = "4")
     updateSliderInput(session, "fnt_cex_fit", value = 1.0)
     updateSliderInput(session, "inv_cex_legenda", value = 0.9)
     # Simulator Plot
@@ -1770,7 +1774,7 @@ server <- function(input, output, session) {
     messaggio <- if (v < l$minimo || v > l$massimo) {
       sprintf("Outside the accepted range for this algorithm: 10^%d will be used.", esponente_tolleranza(v, alg))
     } else if (v > l$predefinito) {
-      "Looser than the default: the fit may stop before the minimum, giving inaccurate estimates and standard errors without any obvious sign (NIST validation with Levenberg-Marquardt: 48 of 52 runs with at least 4 correct digits at the default 10^-12, 41 at 10^-8, 30 at 10^-6, 20 at 10^-4, and no fit reported as not converged)."
+      "Looser than the default: the fit may stop before the minimum, giving inaccurate estimates and standard errors without any obvious sign (NIST validation with Levenberg-Marquardt: 50 of 52 runs with at least 4 correct digits at the default 10^-12, 43 at 10^-8, 32 at 10^-6, 20 at 10^-4, and no fit reported as not converged)."
     } else if (v < l$predefinito) {
       "Tighter than the default: longer computation times (especially with Monte Carlo and Batch Elaboration) and more fits reported as not converged if Max Iterations is too low."
     } else return(NULL)
@@ -1780,9 +1784,15 @@ server <- function(input, output, session) {
   output$visualizza_formula_matematica <- renderUI({
     testo_html <- abbellisci_formula_html(input$tipo_modello)
     
-    div(style = "background-color: #f0faf8; border-left: 4px solid #18bc9c; border-radius: 4px; padding: 10px 14px; margin-top: -5px; margin-bottom: 10px;",
-        tags$em(style = "color: #148f76; font-size: 14.5px; line-height: 1.6; font-family: 'Cambria Math', Cambria, Georgia, serif; word-wrap: break-word; display: block; font-style: italic;",
-                HTML(testo_html)))
+    # Optional note of the model in the registry (field "nota"), shown under the
+    # formula: e.g. the scale of the counts required by the Baranyi models.
+    nota_modello <- MODEL_REGISTRY[[input$tipo_modello]]$nota
+    tagList(
+      div(style = "background-color: #f0faf8; border-left: 4px solid #18bc9c; border-radius: 4px; padding: 10px 14px; margin-top: -5px; margin-bottom: 10px;",
+          tags$em(style = "color: #148f76; font-size: 14.5px; line-height: 1.6; font-family: 'Cambria Math', Cambria, Georgia, serif; word-wrap: break-word; display: block; font-style: italic;",
+                  HTML(testo_html))),
+      if (!is.null(nota_modello)) div(style = "font-size: 11.5px; color: #d35400; line-height: 1.4; margin-top: -4px; margin-bottom: 10px;", "\u26a0\ufe0f ", nota_modello)
+    )
   })
   
   # Removes the limits syntax "[min,max]" from a guess string,
@@ -2269,7 +2279,7 @@ server <- function(input, output, session) {
   # Ea~1e4), a small fixed step (e.g. 1e-5) can fall below numerical
   # precision for the large parameters, giving inaccurate derivatives.
   passo_derivata <- function(valore) {
-    1e-6 * max(abs(valore), 1e-8)
+    1e-6 * scala_passo(valore)
   }
   
   # Interprets a label using R's plotmath syntax (Greek letters, superscripts,
@@ -2733,9 +2743,10 @@ server <- function(input, output, session) {
   }, ignoreInit = FALSE)
   
   # Only the very first time Batch Elaboration is entered (never again
-  # afterwards, even if this tab is revisited later), moves the focus
-  # from section 1 (Data Input for Single Fit, irrelevant here) to
-  # section 4 (Model Definition, the first actual step for Batch) -
+  # afterwards, even if this tab is revisited later), opens section 4
+  # (Model Definition, the first actual step for Batch) and closes section 1
+  # (Data Input for Single Fit, irrelevant here) if the user had opened it -
+  # the sidebar starts with all sections closed -
   # but only if Model Definition is still closed: if the user has already
   # opened it on their own initiative (perhaps together with something else), we touch
   # nothing so as not to undo an arrangement already chosen manually.
@@ -2950,7 +2961,7 @@ server <- function(input, output, session) {
     "pt_col_fit", "pt_col_pairs", "pt_col_qq", "pt_col_res", "pt_col_sim", "pt_pch_fit", "pt_pch_qq",
     "pt_pch_res", "pt_pch_sim", "sl_col_banda", "sl_col_curva", "sl_col_punti", "vln_col_dist", "formato_esportazione", "comp_modo_layout", "comp_riempimento", "comp_stile_lettere", "comp_pos_lettere", "batch_col_punti", "confronto_col_punti",
     "mc_sl_col_banda", "mc_sl_col_curva", "mc_sl_col_punti", "confronto_palette",
-    "ln_lty_fit", "ln_lty_res", "ln_lty_qq", "vln_lty_dist", "sens_palette", "pch_punti_grid_3d",
+    "ci_lty_fit", "pi_lty_fit", "ln_lty_fit", "ln_lty_res", "ln_lty_qq", "vln_lty_dist", "sens_palette", "pch_punti_grid_3d",
     "sl_pch_punti", "mc_sl_pch_punti", "confronto_pch_punti", "confronto_lty_curve",
     "batch_palette", "batch_pch_punti", "batch_lty_linee", "col_bordo_boxplot_confronto", "tipo_grafico_boxplot_confronto",
     "batch_col_ist_par", "batch_col_bordo_ist_par", "batch_col_box_par", "batch_col_bordo_box_par", "batch_tipo_grafico_box_par",
@@ -3082,7 +3093,17 @@ server <- function(input, output, session) {
     # cause errors on the missing fields.
     if (!is.null(configurazione$tipo_modello)) updateSelectInput(session, "tipo_modello", selected = configurazione$tipo_modello)
     if (!is.null(configurazione$formula_custom)) updateTextInput(session, "formula_custom", value = configurazione$formula_custom)
-    if (!is.null(configurazione$tipo_loss)) updateSelectInput(session, "tipo_loss", selected = configurazione$tipo_loss)
+    if (!is.null(configurazione$tipo_loss)) {
+      loss_salvata <- configurazione$tipo_loss
+      # The Huber loss was removed in version 1.0.1 (the threshold was recomputed from the
+      # residuals at every evaluation, so the minimized function was not the Huber loss of
+      # the standard estimator): configurations saved with it switch to least squares.
+      if (identical(loss_salvata, "huber")) {
+        loss_salvata <- "mse"
+        showNotification("This configuration uses the Huber loss, which is no longer available: the least-squares (MSE) loss was selected instead.", type = "warning", duration = 12)
+      }
+      updateSelectInput(session, "tipo_loss", selected = loss_salvata)
+    }
     if (!is.null(configurazione$ponderazione)) updateSelectInput(session, "ponderazione", selected = configurazione$ponderazione)
     if (!is.null(configurazione$ponderazione_zeta)) updateNumericInput(session, "ponderazione_zeta", value = configurazione$ponderazione_zeta)
     if (!is.null(configurazione$batch_zeta_modo)) updateRadioButtons(session, "batch_zeta_modo", selected = configurazione$batch_zeta_modo)
